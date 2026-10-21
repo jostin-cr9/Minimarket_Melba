@@ -5,16 +5,13 @@ const saveUsers = users => localStorage.setItem(USERS_KEY, JSON.stringify(users)
 const formLogin = document.getElementById('formLogin');
 const formRegistro = document.getElementById('formRegistro');
 const aviso = document.getElementById('avisoAuth');
+
 try {
   const existing = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
   if (existing) location.replace(existing.role === 'vendedor' ? 'vendedor.html' : existing.role === 'admin' ? 'admin.html' : 'comprador.html');
 } catch { localStorage.removeItem(SESSION_KEY); }
 
-function message(text, error = true) {
-  aviso.textContent = text;
-  aviso.classList.toggle('error', error);
-  aviso.classList.remove('oculto');
-}
+function message(text) { aviso.textContent = text; aviso.classList.remove('oculto'); }
 function goToRole(user) {
   localStorage.setItem(SESSION_KEY, JSON.stringify({ username: user.username, name: user.name, role: user.role }));
   location.href = user.role === 'vendedor' ? 'vendedor.html' : user.role === 'admin' ? 'admin.html' : 'comprador.html';
@@ -49,4 +46,3 @@ formRegistro.addEventListener('submit', e => {
   const user = { name, username, password, role };
   users.push(user); saveUsers(users); goToRole(user);
 });
-document.querySelectorAll('[data-target]').forEach(btn => btn.setAttribute('aria-label', 'Mostrar u ocultar contraseña'));
