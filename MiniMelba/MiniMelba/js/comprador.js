@@ -20,7 +20,9 @@ const productos = [
     { id: 10, nombre: 'Manzana',          unidad: '1 kg',   categoria: 'Frutas',    precio: 6.00,  imagen: 'img/produ/manzana.webp' },
     { id: 11, nombre: 'Plátano de seda',  unidad: '1 kg',   categoria: 'Frutas',    precio: 4.50,  imagen: 'img/produ/platano-seda.webp' },
     { id: 12, nombre: 'Detergente Ariel', unidad: '500 g',  categoria: 'Limpieza',  precio: 6.80,  imagen: 'img/produ/detergente-ariel.webp' }
-];
+].concat(JSON.parse(localStorage.getItem('melba_admin_products') || '[]')
+    .filter(p => p.id > 12)
+    .map(p => ({ id: p.id, nombre: p.nombre, unidad: p.unidad || 'unidad', categoria: p.categoria, precio: Number(p.precio), imagen: p.imagen || '' })));
 
 let carrito = {};               // { idProducto: cantidad }
 let categoriaActiva = 'Todos';

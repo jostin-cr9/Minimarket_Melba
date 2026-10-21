@@ -7,7 +7,7 @@ function requireRole(role) {
   const user = currentUser();
   if (!user) { location.replace('index.html'); return null; }
   if (role && user.role !== role) {
-    location.replace(user.role === 'vendedor' ? 'vendedor.html' : 'comprador.html');
+    location.replace(user.role === 'vendedor' ? 'vendedor.html' : user.role === 'admin' ? 'admin.html' : 'comprador.html');
     return null;
   }
   return user;

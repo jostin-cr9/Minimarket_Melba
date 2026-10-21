@@ -7,7 +7,7 @@ const formRegistro = document.getElementById('formRegistro');
 const aviso = document.getElementById('avisoAuth');
 try {
   const existing = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
-  if (existing) location.replace(existing.role === 'vendedor' ? 'vendedor.html' : 'comprador.html');
+  if (existing) location.replace(existing.role === 'vendedor' ? 'vendedor.html' : existing.role === 'admin' ? 'admin.html' : 'comprador.html');
 } catch { localStorage.removeItem(SESSION_KEY); }
 
 function message(text, error = true) {
@@ -17,7 +17,7 @@ function message(text, error = true) {
 }
 function goToRole(user) {
   localStorage.setItem(SESSION_KEY, JSON.stringify({ username: user.username, name: user.name, role: user.role }));
-  location.href = user.role === 'vendedor' ? 'vendedor.html' : 'comprador.html';
+  location.href = user.role === 'vendedor' ? 'vendedor.html' : user.role === 'admin' ? 'admin.html' : 'comprador.html';
 }
 document.getElementById('irRegistro').addEventListener('click', e => {
   e.preventDefault(); aviso.classList.add('oculto'); formLogin.classList.add('oculto'); formRegistro.classList.remove('oculto');

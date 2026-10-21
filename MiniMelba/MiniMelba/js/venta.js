@@ -14,7 +14,9 @@ let productos = [
   { id: 6, codigo: '7750006', nombre: 'Pollo entero (kg)',      categoria: 'Carnes',    precio: 11.90, stock: 12 },
   { id: 7, codigo: '7750007', nombre: 'Pan francés (unidad)',   categoria: 'Panadería', precio: 0.30,  stock: 100 },
   { id: 8, codigo: '7750008', nombre: 'Detergente Ariel 500 g', categoria: 'Limpieza',  precio: 6.80,  stock: 5  }
-];
+].concat(JSON.parse(localStorage.getItem('melba_admin_products') || '[]')
+  .filter(p => p.id > 8)
+  .map(p => ({ id: p.id, codigo: p.code, nombre: p.name, categoria: p.category, precio: Number(p.price), stock: Number(p.stock) })));
 
 let venta = {};              // { idProducto: cantidad }
 let nroTransaccion = 1;
@@ -242,7 +244,9 @@ function completarVenta() {
 }
 
 function guardarVenta(registro) {
-  // TODO: enviar a la BD (venta, detalle, vendedor) para el dashboard del admin
+  const ventas = JSON.parse(localStorage.getItem('melba_sales') || '[]');
+  ventas.push(registro);
+  localStorage.setItem('melba_sales', JSON.stringify(ventas));
   console.log('Venta guardada:', registro);
 }
 
