@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Minimarket Melba | Vendedor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/vendedor.css">
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="cab">
+  <div class="cab-izq">
+    <span class="logo">M</span>
+    <div class="cab-titulo">
+      <b>MINIMARKET "Melba"</b>
+      <small>PANEL COMERCIAL · VENDEDOR</small>
+    </div>
+  </div>
+  <div class="cab-der">
+    <span class="chip-user">Usuario: <b id="userCod"></b><i class="punto"></i></span>
+    <div class="perfil">
+      <button class="avatar" id="btnAvatar" aria-label="Menú de usuario"><span id="avatarLetra"></span></button>
+      <div class="menu oculto" id="menuPerfil">
+        <div class="menu-cab"><b id="menuUsuario"></b><small id="menuRol"></small></div>
+        <a href="#" id="linkPerfil">Perfil</a>
+        <hr>
+        <a href="#" id="cerrarSesion">Cerrar sesión</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="principal">
+
+  <nav class="migas">Inicio &gt; <b>Panel Comercial Principal</b></nav>
+
+  <div class="titulo-fila">
+    <h1>Panel Comercial Principal</h1>
+    <p>Gestione los pedidos pendientes y registre nuevas ventas.</p>
+  </div>
+
+  <div class="vista">
+
+    <!-- IZQUIERDA: pedidos -->
+    <section class="pedidos card">
+      <div class="card-cab">
+        <span class="ico">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg>
+        </span>
+        <div>
+          <h3>Tabla de Pedidos</h3>
+          <p class="sub-t">Marque el pedido como armado y complete la venta</p>
+        </div>
+        <span id="contador" class="contador">0</span>
+      </div>
+      <div class="cuadro-lista">
+        <div id="listaPedidos"></div>
+        <p id="vacio" class="vacio oculto">No hay pedidos pendientes</p>
+      </div>
+    </section>
+
+    <!-- DERECHA: acciones -->
+    <aside class="acciones card">
+      <h3 class="card-titulo">Acciones</h3>
+      <a href="venta.html" class="btn-accion verde">Registrar Venta</a>
+      <button id="btnCancelar" class="btn-accion rojo">Cancelar Pedidos</button>
+    </aside>
+
+  </div>
+</main>
+
+<footer class="pie">
+  <span>© 2026 MINIMARKET Melba. Todos los derechos reservados. Módulo de control comercial seguro.</span>
+  <span class="sistema"><i class="punto"></i> Sistema activo</span>
+</footer>
+
+<!-- MODAL de confirmación (se reutiliza para completar y eliminar) -->
+<div id="modal" class="modal oculto">
+  <div class="modal-caja">
+    <p id="modalTexto"></p>
+    <div class="modal-botones">
+      <button id="modalSi" class="m-si">Sí</button>
+      <button id="modalNo" class="m-no">No</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script>if (!requireRole('vendedor')) document.body.innerHTML = '';</script>
+<script src="js/menu.js"></script>
+<script src="js/vendedor.js"></script>
+</body>
+</html>

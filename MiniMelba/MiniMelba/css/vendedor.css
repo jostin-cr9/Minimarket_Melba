@@ -1,0 +1,104 @@
+:root{--rojo:#d32f2f;--rojo-osc:#b71c1c;--verde:#10b981;--verde-osc:#059669;--azul:#2563eb;--ambar:#f59e0b;--bg:#f5f7fa;--txt:#111827;--gris:#6b7280;--borde:#e5e7eb}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Outfit',system-ui,sans-serif}
+body{background:var(--bg);color:var(--txt);min-height:100vh;display:flex;flex-direction:column}
+.oculto{display:none!important}
+a{text-decoration:none}
+
+/* HEADER con línea roja */
+.cab{background:#fff;border-bottom:3px solid var(--rojo);display:flex;justify-content:space-between;align-items:center;padding:12px 32px}
+.cab-izq{display:flex;align-items:center;gap:12px}
+.logo{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:var(--rojo);color:#fff;font-weight:700;font-size:20px}
+.cab-titulo b{display:block;font-size:17px}
+.cab-titulo small{color:var(--verde-osc);font-weight:600;font-size:11px;letter-spacing:.5px}
+.cab-der{display:flex;align-items:center;gap:18px;font-size:12px;color:var(--gris)}
+.chip-user{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--borde);background:#f9fafb;padding:6px 12px;border-radius:20px;color:var(--txt)}
+.punto{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--verde)}
+
+/* Perfil / menú */
+.perfil{position:relative}
+.avatar{width:38px;height:38px;border-radius:50%;border:2px solid var(--rojo);background:var(--rojo) center/cover no-repeat;color:#fff;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.avatar:hover{box-shadow:0 0 0 3px rgba(211,47,47,.2)}
+.menu{position:absolute;right:0;top:48px;width:210px;background:#fff;color:var(--txt);border:1px solid var(--borde);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:6px 0;z-index:20}
+.menu-cab{padding:10px 14px;border-bottom:1px solid var(--borde);margin-bottom:6px}
+.menu-cab b{display:block;font-size:14px}
+.menu-cab small{color:var(--gris);font-size:12px}
+.menu a{display:block;padding:9px 14px;font-size:14px;color:var(--txt)}
+.menu a:hover{background:#f3f4f6}
+.menu hr{border:0;border-top:1px solid var(--borde);margin:6px 0}
+
+/* CONTENIDO */
+.principal{flex:1;width:100%;max-width:1150px;margin:auto;padding:24px}
+.migas{font-size:13px;color:var(--gris);margin-bottom:14px}
+.migas b{color:var(--rojo)}
+.titulo-fila{margin-bottom:20px}
+.titulo-fila h1{font-size:26px}
+.titulo-fila p{color:var(--gris);font-size:13px;margin-top:4px}
+
+.vista{display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start}
+
+/* Tarjeta contenedora */
+.card,.cuadro{background:#fff;border:1px solid var(--borde);border-radius:16px;padding:20px}
+.card-cab{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.card-cab h3,.card-titulo{font-size:15px}
+.sub-t{font-size:12px;color:var(--gris)}
+.ico{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:#ecfdf5;color:var(--verde)}
+.contador{margin-left:auto;font-size:12px;font-weight:600;background:var(--rojo);color:#fff;border-radius:20px;padding:4px 12px}
+
+#listaPedidos{display:flex;flex-direction:column;gap:14px;max-height:calc(100vh - 330px);overflow-y:auto;padding-right:6px}
+.vacio{color:#9ca3af;text-align:center;padding:40px 0}
+
+/* Tarjeta de pedido (borde ámbar = pendiente) */
+.pedido{display:flex;justify-content:space-between;gap:16px;background:#fff;border:2px solid var(--ambar);border-radius:12px;padding:16px 18px}
+.pedido h3{font-size:16px;margin-bottom:8px}
+.pedido h3 small{font-weight:400;color:var(--gris);font-size:13px}
+.pedido ul{list-style:none;font-size:13px;color:#374151;margin-bottom:10px}
+.pedido li{padding:5px 0;border-bottom:1px solid var(--borde);font-weight:500}
+.pedido li:last-child{border-bottom:0}
+.pedido li b{color:var(--azul)}
+.total{font-weight:700;font-size:15px;color:var(--txt)}
+
+/* Botones de la tarjeta */
+.pedido-botones{display:flex;align-items:flex-start;gap:10px}
+.pedido-botones button{width:40px;height:40px;border:1px solid var(--borde);background:#f9fafb;border-radius:10px;cursor:pointer;font-size:17px;color:var(--gris);display:flex;align-items:center;justify-content:center;transition:.15s}
+.btn-armado::after{content:"";width:16px;height:16px;border:2px solid var(--gris);border-radius:50%}
+.btn-armado:hover{border-color:var(--verde)}
+.btn-armado.activo{background:var(--verde);border-color:var(--verde-osc)}
+.btn-armado.activo::after{background:#fff;border-color:#fff}
+.btn-ok:hover{background:var(--verde);color:#fff;border-color:var(--verde-osc)}
+.btn-x{display:none!important;border-color:#fecaca!important;background:#fef2f2!important;color:var(--rojo)!important}
+.btn-x:hover{background:#fee2e2!important}
+
+/* Modo cancelar: aparece la X */
+.modo-cancelar .btn-x{display:flex!important}
+.modo-cancelar .pedido{border:2px solid var(--rojo);background:#fef2f2}
+
+/* Acciones derecha */
+.acciones{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+.btn-accion{display:block;text-align:center;padding:12px;border:0;border-radius:10px;font-size:14px;font-weight:600;color:#fff;cursor:pointer}
+.btn-accion.verde{background:var(--verde)}
+.btn-accion.verde:hover{background:var(--verde-osc)}
+.btn-accion.rojo{background:#fef2f2;color:var(--rojo);border:1px solid #fecaca}
+.btn-accion.rojo:hover{background:#fee2e2}
+.btn-accion.rojo.activo{background:var(--rojo);color:#fff;border-color:var(--rojo-osc)}
+
+/* Footer */
+.pie{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:16px 32px;background:#fff;border-top:1px solid var(--borde);font-size:12px;color:var(--gris)}
+.sistema{display:inline-flex;align-items:center;gap:6px;color:var(--verde-osc)}
+
+/* Modal */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:30}
+.modal-caja{background:#fff;border-radius:16px;padding:28px;width:90%;max-width:360px;text-align:center}
+.modal-caja p{font-size:17px;font-weight:500;margin-bottom:20px}
+.modal-botones{display:flex;gap:12px}
+.modal-botones button{flex:1;padding:11px;border:0;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
+.m-si{background:var(--verde);color:#fff}
+.m-si:hover{background:var(--verde-osc)}
+.m-no{background:#e5e7eb;color:var(--txt)}
+
+@media (max-width:800px){
+  .vista{grid-template-columns:1fr}
+  .acciones{flex-direction:row}
+  .acciones .btn-accion{flex:1}
+  .cab{padding:12px 16px}
+  #listaPedidos{max-height:none}
+}

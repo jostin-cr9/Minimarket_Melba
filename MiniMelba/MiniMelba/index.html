@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Minimarket Melba | Acceso</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+<div class="auth">
+
+  <div class="auth-left">
+    <span class="badge">MÓDULO ADMINISTRATIVO V4.2</span>
+    <div>
+      <div class="bienvenida"><span class="logo">M</span> ¡Bienvenido a MINIMARKET "Melba"!</div>
+      <h1>Productos frescos, accesibles más cerca a ustedes y amigable con el bolsillo</h1>
+    </div>
+    <small>© 2024 MINIMARKET. Todos los derechos reservados.</small>
+  </div>
+
+  <div class="auth-right">
+    <div class="auth-card">
+      <p class="sistema"><b>SISTEMA DE GESTIÓN</b> • Ingreso Seguro</p>
+
+      <!-- LOGIN -->
+      <form id="formLogin">
+        <h2>Iniciar sesión</h2>
+        <p class="sub">Ingrese sus credenciales para acceder al panel comercial.</p>
+
+        <label for="loginUsuario">Usuario</label>
+        <input type="text" id="loginUsuario" placeholder="Ej: admin_central" required>
+
+        <label for="loginClave">Contraseña</label>
+        <div class="pass">
+          <input type="password" id="loginClave" placeholder="••••••••" required>
+          <button type="button" class="ojo" data-target="loginClave">👁</button>
+        </div>
+
+        <div class="fila">
+          <label class="check"><input type="checkbox" checked> Recordarme</label>
+          
+          <br><span class="ayuda-pass"><h6>Si olvidó su clave, cree otra cuenta de demostración</h6></span>
+        </div>
+
+        <button class="btn" type="submit">Iniciar sesión</button>
+        <p class="cambio">¿No tiene cuenta? <a href="#" id="irRegistro">Regístrese</a></p>
+      </form>
+
+      <p id="avisoAuth" class="aviso-auth oculto" role="status" aria-live="polite"></p>
+
+      <!-- REGISTRO -->
+      <form id="formRegistro" class="oculto">
+        <h2>Crear cuenta</h2>
+        <p class="sub">Complete sus datos para registrarse.</p>
+
+        <label for="regNombre">Nombre completo</label>
+        <input type="text" id="regNombre" required>
+
+        <label for="regUsuario">Usuario</label>
+        <input type="text" id="regUsuario" required>
+
+        <label for="regClave">Contraseña</label>
+        <div class="pass">
+          <input type="password" id="regClave" required>
+          <button type="button" class="ojo" data-target="regClave">👁</button>
+        </div>
+
+        <label for="regRol">Tipo de cuenta</label>
+        <select id="regRol">
+          <option value="comprador">Comprador (cliente)</option>
+          <option value="vendedor">Vendedor (personal)</option>
+        </select>
+
+        <button class="btn" type="submit">Registrarme</button>
+        <p class="cambio">¿Ya tiene cuenta? <a href="#" id="irLogin">Inicie sesión</a></p>
+      </form>
+
+  <p class="seguro">Prototipo local · No uses contraseñas reales</p>
+    </div>
+  </div>
+
+</div>
+<script src="js/login.js"></script>
+</body>
+</html>

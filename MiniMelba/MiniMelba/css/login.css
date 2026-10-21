@@ -1,0 +1,50 @@
+:root{--verde:#2e7d32;--verde-osc:#1b5e20;--txt:#1f2937;--gris:#6b7280;--borde:#e5e7eb}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Outfit',system-ui,sans-serif}
+body{color:var(--txt);background:#f4f6f8}
+.oculto{display:none!important}
+a{color:var(--verde);text-decoration:none;font-size:13px}
+
+.auth{display:grid;grid-template-columns:1fr 1fr;min-height:100vh}
+
+/* Lado izquierdo */
+.auth-left{
+  background:linear-gradient(rgba(0,0,0,.65),rgba(0,0,0,.75)),
+             url('https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=1200') center/cover #222;
+  color:#fff;padding:32px;display:flex;flex-direction:column;justify-content:space-between}
+.badge{align-self:flex-start;border:1px solid rgba(255,255,255,.4);padding:6px 12px;border-radius:20px;font-size:11px;letter-spacing:.5px}
+.bienvenida{display:flex;align-items:center;gap:10px;font-weight:600;margin-bottom:14px}
+.auth-left h1{font-size:34px;line-height:1.2;max-width:460px}
+.auth-left small{font-size:12px;opacity:.8}
+.logo{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:#c62828;color:#fff;font-weight:700}
+
+/* Lado derecho */
+.auth-right{display:flex;align-items:center;justify-content:center;padding:24px}
+.auth-card{background:#fff;border-radius:14px;padding:32px;width:100%;max-width:400px;box-shadow:0 8px 30px rgba(0,0,0,.08)}
+.sistema{font-size:11px;color:var(--gris);margin-bottom:12px}
+.sistema b{color:var(--verde)}
+.auth-card h2{font-size:24px;margin-bottom:4px}
+.sub{color:var(--gris);font-size:13px;margin-bottom:16px}
+
+label{display:block;font-size:12px;font-weight:600;margin:12px 0 6px}
+input,select{width:100%;padding:11px 12px;border:1px solid var(--borde);border-radius:8px;font-size:14px;background:#f9fafb}
+input:focus,select:focus{outline:2px solid var(--verde);background:#fff}
+
+.pass{position:relative}
+.ojo{position:absolute;right:10px;top:50%;transform:translateY(-50%);border:0;background:none;cursor:pointer}
+
+.fila{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.check{display:flex;align-items:center;gap:6px;font-weight:400;margin:0}
+.check input{width:auto}
+
+.btn{width:100%;padding:12px;border:0;border-radius:8px;background:var(--verde);color:#fff;font-weight:600;font-size:15px;cursor:pointer;margin-top:16px}
+.btn:hover{background:var(--verde-osc)}
+.cambio{text-align:center;margin-top:14px;font-size:13px;color:var(--gris)}
+.seguro{text-align:center;font-size:11px;color:var(--gris);margin-top:18px}
+.aviso-auth{margin-top:14px;padding:10px 12px;border-radius:8px;background:#fee2e2;color:#991b1b;font-size:13px}
+.aviso-auth:not(.error){background:#dcfce7;color:#166534}
+
+/* Responsive */
+@media (max-width:800px){
+  .auth{grid-template-columns:1fr}
+  .auth-left{display:none}
+}

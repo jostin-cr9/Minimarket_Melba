@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Minimarket Melba | Registro de Ventas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/venta.css">
+</head>
+
+<body>
+
+    <!-- HEADER -->
+    <header class="cab">
+        <div class="cab-izq">
+            <span class="logo">M</span>
+            <div class="cab-titulo">
+                <b>MINIMARKET "Melba"</b>
+                <small>MÓDULO DE VENTAS V4.2</small>
+            </div>
+        </div>
+        <div class="cab-der">
+            <span class="chip-user">Usuario: <b id="userCod"></b><i class="punto"></i></span>
+            <span class="seguro">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />
+                    <path d="M9 12l2 2 4-4" />
+                </svg>
+                Conexión Segura
+            </span>
+        </div>
+    </header>
+
+    <main class="principal">
+
+        <nav class="migas"><a href="vendedor.html">Panel Comercial Principal</a> &gt; <b>Registro de Ventas</b></nav>
+
+        <div class="titulo-fila">
+            <div>
+                <h1>Módulo Registro de Ventas</h1>
+                <p>Agregue los productos a la venta y procese el cobro de manera rápida.</p>
+            </div>
+            <a href="vendedor.html" class="volver">← Volver al Panel Principal</a>
+        </div>
+
+        <div class="cols">
+
+            <!-- COLUMNA IZQUIERDA -->
+            <div class="col-izq">
+
+                <section class="card">
+                    <div class="card-cab">
+                        <span class="ico">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round">
+                                <circle cx="11" cy="11" r="7" />
+                                <path d="M21 21l-4.3-4.3" />
+                            </svg>
+                        </span>
+                        <h3>Búsqueda de Productos</h3>
+                        <small class="ayuda">Busque por nombre o use lector de barras</small>
+                    </div>
+
+                    <div id="alertaStock" class="alerta oculto"></div>
+
+                    <div class="busqueda">
+                        <div class="campo-buscar">
+                            <label for="buscar">Ingresar Nombre o Código de Barras</label>
+                            <input type="text" id="buscar"
+                                placeholder="Ej. Arroz, Leche o escanee el código de barras..." autocomplete="off">
+
+                        </div>
+                        <div class="campo-cant">
+                            <label for="cantidad">Cantidad</label>
+                            <input type="number" id="cantidad" value="1" min="1">
+                        </div>
+                        <button type="button" id="btnAgregar" class="btn-rojo">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round">
+                                <circle cx="12" cy="12" r="9" />
+                                <path d="M12 8v8M8 12h8" />
+                            </svg>
+                            Agregar
+                        </button>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <div class="card-cab">
+                        <span class="ico verde-ico">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 8l-9-5-9 5 9 5 9-5z" />
+                                <path d="M3 8v8l9 5 9-5V8" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3>Productos Disponibles</h3>
+                            <p class="sub-t">Pulse Agregar para sumar el producto a la venta</p>
+                        </div>
+                    </div>
+
+                    <div class="tabla-wrap tabla-prod">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>PRODUCTO</th>
+                                    <th>CATEGORÍA</th>
+                                    <th class="r">PRECIO</th>
+                                    <th class="c">STOCK</th>
+                                    <th class="c">ACCIÓN</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbProductos"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <!-- COLUMNA DERECHA -->
+            <aside class="col-der">
+
+                <section class="card">
+                    <h3 class="card-titulo">Identificación de Venta</h3>
+                    <div class="fila-dato"><span>N° Transacción:</span><b id="nroTx"></b></div>
+                    <div class="fila-dato"><span>Fecha / Hora:</span><b id="fechaHora"></b></div>
+                    <hr>
+                    <label for="cliente" class="lbl">Cliente (Opcional)</label>
+                    <input type="text" id="cliente" value="Cliente Genérico (Público General)">
+                </section>
+
+                <section class="card">
+                    <div class="resumen-cab">
+                        <h3 class="card-titulo">Resumen de Compra</h3>
+                        <span id="lineas" class="badge-lineas">Líneas: 0</span>
+                    </div>
+
+                    <div class="tabla-wrap tabla-resumen">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>PRODUCTO</th>
+                                    <th class="c">CANT.</th>
+                                    <th class="r">P. UNIT.</th>
+                                    <th class="r">SUBTOTAL</th>
+                                    <th class="c"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbVenta"></tbody>
+                        </table>
+                    </div>
+                    <div class="fila-dato"><span>Subtotal afecto:</span><b id="subtotal">S/ 0.00</b></div>
+                    <div class="fila-dato"><span>I.G.V. (18%):</span><b id="igv">S/ 0.00</b></div>
+                    <hr>
+                    <div class="total-fila"><span>TOTAL:</span><b id="total">S/ 0.00</b></div>
+                    <hr>
+
+                    <label for="pago" class="lbl">Método de Pago</label>
+                    <select id="pago">
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="Yape / Plin">Yape / Plin</option>
+                        <option value="Tarjeta">Tarjeta</option>
+                    </select>
+
+                    <div id="boxEfectivo">
+                        <label for="recibido" class="lbl">Monto recibido</label>
+                        <input type="number" id="recibido" min="0" step="0.10" placeholder="0.00">
+                        <div class="fila-dato vuelto"><span>Vuelto:</span><b id="vuelto">S/ 0.00</b></div>
+                    </div>
+
+                    <p id="msg" class="msg"></p>
+                    <button type="button" id="btnCompletar" class="btn-verde">Completar Venta (F10)</button>
+                    <button type="button" id="btnCancelar" class="btn-cancelar">Cancelar Transacción</button>
+                </section>
+
+            </aside>
+        </div>
+    </main>
+
+    <footer class="pie">
+        <span>© 2026 MINIMARKET Melba. Todos los derechos reservados. Módulo de control comercial seguro.</span>
+        <span class="activo"><i class="punto"></i> Sistema activo</span>
+    </footer>
+
+    <!-- MODAL Sí / No -->
+    <div id="modal" class="modal oculto">
+        <div class="modal-caja">
+            <p id="modalTexto"></p>
+            <div class="modal-botones">
+                <button id="modalSi" class="m-si">Sí</button>
+                <button id="modalNo" class="m-no">No</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script>if (!requireRole('vendedor')) document.body.innerHTML = '';</script>
+    <script src="js/venta.js"></script>
+</body>
+
+</html>
