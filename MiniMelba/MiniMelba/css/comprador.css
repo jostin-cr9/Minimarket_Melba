@@ -514,3 +514,59 @@ button.icon-btn { border: 0; background: transparent; }
 /* Con el carrito vacío se oculta el total y el formulario */
 .drawer.vacio .cart-total,
 .drawer.vacio #formPedido { display: none; }
+
+/* PESTAÑAS DEL PANEL Y TICKETS DE PEDIDOS */
+.drawer-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.drawer-tab {
+    flex: 1;
+    background: #fff;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 30px;
+    padding: 8px 14px;
+    font-size: .9rem;
+    cursor: pointer;
+    transition: all .25s;
+}
+.drawer-tab:hover, .drawer-tab.active { background: var(--green); color: #fff; border-color: var(--green); }
+
+.ticket {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: box-shadow .25s;
+}
+.ticket:hover, .ticket.abierto { box-shadow: var(--shadow); }
+.ticket-cab {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    background: none;
+    border: 0;
+    font: inherit;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+}
+.ticket-cab > span:first-child { flex: 1; min-width: 0; font-size: .9rem; font-weight: 600; }
+.ticket-cab small { display: block; color: var(--muted); font-weight: 400; margin-top: 2px; }
+.ticket-cab strong { color: var(--green-dark); }
+
+.ticket-estado { font-size: .72rem; font-weight: 700; padding: 3px 10px; border-radius: 30px; background: #fff4e5; color: #b26a00; }
+.ticket-estado.estado-armado { background: #e3f2fd; color: #1565c0; }
+.ticket-estado.estado-completado { background: var(--green-light); color: var(--green-dark); }
+.ticket-estado.estado-cancelado { background: #fdecea; color: var(--red); }
+
+.ticket-detalle { display: none; margin: 0 14px; padding: 10px 0 14px; border-top: 1px dashed var(--border); font-size: .88rem; }
+.ticket.abierto .ticket-detalle { display: block; }
+.ticket-detalle ul { list-style: none; padding: 0; margin: 0 0 8px; }
+.ticket-detalle li { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.ticket-detalle small { color: var(--muted); }
+.ticket-detalle p { margin: 4px 0; line-height: 1.5; }
+.ticket-total { display: flex; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px !important; }
+.ticket-total b:last-child { color: var(--green-dark); }

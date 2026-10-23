@@ -277,41 +277,53 @@
         </div>
 
         <div class="drawer-body">
-            <div id="items"></div>
-
-            <div class="cart-total">
-                <span>Total</span>
-                <strong id="total">S/ 0.00</strong>
+            <div class="drawer-tabs">
+                <button type="button" id="tabCarrito" class="drawer-tab active">Mi carrito</button>
+                <button type="button" id="tabPedidos" class="drawer-tab">Mis pedidos</button>
             </div>
 
-            <form id="formPedido" class="mt-3">
-                <div class="mb-3">
-                    <label for="entrega" class="form-label">Tipo de entrega</label>
-                    <select id="entrega" class="form-select">
-                        <option value="">Selecciona una opción</option>
-                        <option value="Recojo en tienda">Recojo en tienda</option>
-                        <option value="Delivery">Delivery</option>
-                    </select>
+            <div id="vistaCarrito">
+                <div id="items"></div>
+
+                <div class="cart-total">
+                    <span>Total</span>
+                    <strong id="total">S/ 0.00</strong>
                 </div>
 
-                <div class="mb-3 d-none" id="boxDireccion">
-                    <label for="direccion" class="form-label">Dirección</label>
-                    <input type="text" id="direccion" class="form-control" placeholder="Calle, número, referencia">
-                </div>
+                <form id="formPedido" class="mt-3">
+                    <div class="mb-3">
+                        <label for="entrega" class="form-label">Tipo de entrega</label>
+                        <select id="entrega" class="form-select">
+                            <option value="">Selecciona una opción</option>
+                            <option value="Recojo en tienda">Recojo en tienda</option>
+                            <option value="Delivery">Delivery</option>
+                        </select>
+                    </div>
 
-                <div class="mb-3">
-                    <label for="pago" class="form-label">Forma de pago</label>
-                    <select id="pago" class="form-select">
-                        <option>Efectivo</option>
-                        <option>Yape / Plin</option>
-                        <option>Tarjeta</option>
-                    </select>
-                </div>
+                    <div class="mb-3 d-none" id="boxDireccion">
+                        <label for="direccion" class="form-label">Dirección</label>
+                        <input type="text" id="direccion" class="form-control" placeholder="Calle, número, referencia">
+                    </div>
 
-                <button type="submit" class="btn btn-green w-100">Confirmar pedido</button>
-                <button type="button" id="btnVaciar" class="btn btn-outline-green w-100 mt-2">Vaciar pedido</button>
-                <p id="msg" class="form-message"></p>
-            </form>
+                    <div class="mb-3">
+                        <label for="pago" class="form-label">Forma de pago</label>
+                        <select id="pago" class="form-select">
+                            <option>Efectivo</option>
+                            <option>Yape / Plin</option>
+                            <option>Tarjeta</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-green w-100">Confirmar pedido</button>
+                    <button type="button" id="btnVaciar" class="btn btn-outline-green w-100 mt-2">Vaciar pedido</button>
+                    <p id="msg" class="form-message"></p>
+                </form>
+            </div>
+
+            <div id="vistaPedidos" class="d-none">
+                <p id="msgPedido" class="form-message"></p>
+                <div id="listaPedidos"></div>
+            </div>
         </div>
     </aside>
 

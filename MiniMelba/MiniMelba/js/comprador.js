@@ -273,6 +273,15 @@ function iniciarFormularios() {
     });
 
     // Confirmar pedido
+        // Pestañas del panel: carrito / mis pedidos
+    $('tabCarrito').addEventListener('click', () => mostrarVista('carrito'));
+    $('tabPedidos').addEventListener('click', () => {
+        $('msgPedido').textContent = '';
+        mostrarVista('pedidos');
+        cargarMisPedidos();
+    });
+
+    // Confirmar pedido
     $('formPedido').addEventListener('submit', async e => {
         e.preventDefault();
 
@@ -295,8 +304,12 @@ function iniciarFormularios() {
             carrito = {};
             $('formPedido').reset();
             $('boxDireccion').classList.add('d-none');
+            mostrarMsg('');
             renderCarrito();
-            mostrarMsg(`¡Pedido ${creado.code} enviado! Total ${soles(creado.total)}. Lo recibirá el vendedor.`, 'ok');
+            mostrarVista('pedidos');
+            $('msgPedido').style.color = '#267447';
+            $('msgPedido').textContent = `¡Pedido ${creado.code} enviado! Total ${soles(creado.total)}. Lo recibirá el vendedor.`;
+            await cargarMisPedidos(creado.id);
         } catch (error) {
             mostrarMsg(error.message);
         } finally {
@@ -326,4 +339,58 @@ async function guardarPedido(pedido) {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'No se pudo enviar el pedido.');
     return data.order;
+}
+
+// MIS PEDIDOS (tickets)
+const ESTADOS = { pendiente: 'Pendiente', armado: 'Armado', completado: 'Completado', cancelado: 'Cancelado' };
+
+function mostrarVista(vista) {
+    const enPedidos = vista === 'pedidos';
+    $('vistaCarrito').classList.toggle('d-none', enPedidos);
+    $('vistaPedidos').classList.toggle('d-none', !enPedidos);
+    $('tabCarrito').classList.toggle('active', !enPedidos);
+    $('tabPedidos').classList.toggle('active', enPedidos);
+}
+
+async function cargarMisPedidos(idAbierto = null) {
+    try {
+        const res = await fetch('/api/orders');
+        if (res.status === 401) { location.replace('index.html'); return; }
+        if (!res.ok) throw new Error('No se pudieron cargar tus pedidos.');
+        const data = await res.json();
+        renderMisPedidos(data.orders, idAbierto);
+    } catch (error) {
+        $('listaPedidos').innerHTML = `<p class="empty-message">${esc(error.message)}</p>`;
+    }
+}
+
+function renderMisPedidos(orders, idAbierto) {
+    const cont = $('listaPedidos');
+    if (orders.length === 0) {
+        cont.innerHTML = '<p class="empty-message">Aún no has hecho pedidos.</p>';
+        return;
+    }
+    cont.innerHTML = '';
+    orders.forEach(o => {
+        const fecha = new Date(o.createdAt).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' });
+        const ticket = document.createElement('article');
+        ticket.className = 'ticket' + (o.id === idAbierto ? ' abierto' : '');
+        ticket.innerHTML = `
+            <button type="button" class="ticket-cab">
+                <span><b>${esc(o.code)}</b><small>${esc(fecha)}</small></span>
+                <span class="ticket-estado estado-${esc(o.status)}">${esc(ESTADOS[o.status] || o.status)}</span>
+                <strong>${soles(Number(o.total))}</strong>
+            </button>
+            <div class="ticket-detalle">
+                <ul>${o.items.map(i => `
+                    <li><span>${Number(i.quantity)} × ${esc(i.name)} <small>(${esc(i.unit)})</small></span>
+                        <span>${soles(Number(i.price) * Number(i.quantity))}</span></li>`).join('')}
+                </ul>
+                <p><b>Entrega:</b> ${esc(o.delivery)}${o.address ? ' · ' + esc(o.address) : ''}</p>
+                <p><b>Pago:</b> ${esc(o.payment)}</p>
+                <p class="ticket-total"><b>Total</b><b>${soles(Number(o.total))}</b></p>
+            </div>`;
+        ticket.querySelector('.ticket-cab').addEventListener('click', () => ticket.classList.toggle('abierto'));
+        cont.appendChild(ticket);
+    });
 }
