@@ -1,18 +1,31 @@
-// Demo local: controla navegación en el navegador. No reemplaza autenticación de servidor.
-const AUTH_SESSION_KEY = 'melba_session';
+
+const ROLE_HOME = { admin: 'admin.html', vendedor: 'vendedor.html', comprador: 'comprador.html' };
+let _usuarioCache;
+
 function currentUser() {
-  try { return JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || 'null'); } catch { return null; }
+  if (_usuarioCache !== undefined) return _usuarioCache;
+  try {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/auth/me', false);
+    xhr.send();
+    _usuarioCache = xhr.status === 200 ? JSON.parse(xhr.responseText).user : null;
+  } catch {
+    _usuarioCache = null;
+  }
+  return _usuarioCache;
 }
+
 function requireRole(role) {
   const user = currentUser();
   if (!user) { location.replace('index.html'); return null; }
   if (role && user.role !== role) {
-    location.replace(user.role === 'vendedor' ? 'vendedor.html' : user.role === 'admin' ? 'admin.html' : 'comprador.html');
+    location.replace(ROLE_HOME[user.role] || 'index.html');
     return null;
   }
   return user;
 }
-function logout() {
-  localStorage.removeItem(AUTH_SESSION_KEY);
+
+async function logout() {
+  try { await fetch('/api/auth/logout', { method: 'POST' }); } catch {}
   location.replace('index.html');
 }
