@@ -273,7 +273,7 @@ function iniciarFormularios() {
     });
 
     // Confirmar pedido
-    $('formPedido').addEventListener('submit', e => {
+    $('formPedido').addEventListener('submit', async e => {
         e.preventDefault();
 
         if (Object.keys(carrito).length === 0) return mostrarMsg('Agrega al menos un producto.');
@@ -282,27 +282,26 @@ function iniciarFormularios() {
             return mostrarMsg('Ingresa la dirección de entrega.');
 
         const pedido = {
-            cliente: usuarioActual.name,
-            fecha: new Date().toISOString(),
-            entrega: $('entrega').value,
-            direccion: $('entrega').value === 'Delivery' ? $('direccion').value.trim() : '',
-            pago: $('pago').value,
-            total: totalPedido(),
-            items: Object.entries(carrito).map(([id, c]) => ({
-                nombre: porId(+id).nombre,
-                cantidad: c,
-                unidad: porId(+id).unidad,
-                precio: porId(+id).precio
-            }))
+            delivery: $('entrega').value,
+            address: $('entrega').value === 'Delivery' ? $('direccion').value.trim() : '',
+            payment: $('pago').value,
+            items: Object.entries(carrito).map(([id, c]) => ({ productId: +id, quantity: c }))
         };
 
-        guardarPedido(pedido);
-
-        carrito = {};
-        $('formPedido').reset();
-        $('boxDireccion').classList.add('d-none');
-        renderCarrito();
-        mostrarMsg('¡Pedido enviado! Lo recibirá el vendedor.', 'ok');
+        const boton = e.target.querySelector('button[type="submit"]');
+        boton.disabled = true;
+        try {
+            const creado = await guardarPedido(pedido);
+            carrito = {};
+            $('formPedido').reset();
+            $('boxDireccion').classList.add('d-none');
+            renderCarrito();
+            mostrarMsg(`¡Pedido ${creado.code} enviado! Total ${soles(creado.total)}. Lo recibirá el vendedor.`, 'ok');
+        } catch (error) {
+            mostrarMsg(error.message);
+        } finally {
+            boton.disabled = false;
+        }
     });
 
     // Suscripción (demostrativa)
@@ -314,7 +313,17 @@ function iniciarFormularios() {
     });
 }
 
-function guardarPedido(pedido) {
-    // TODO: enviar a la BD para que aparezca como notificación en la vista del vendedor
-    console.log('Pedido enviado:', pedido);
+async function guardarPedido(pedido) {
+    const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pedido)
+    });
+    if (res.status === 401) {
+        location.replace('index.html');
+        throw new Error('Tu sesión expiró. Inicia sesión de nuevo.');
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'No se pudo enviar el pedido.');
+    return data.order;
 }
