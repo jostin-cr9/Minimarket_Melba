@@ -1,28 +1,33 @@
-// =====================================
-// MINIMARKET MELBA - VISTA COMPRADOR
-// =====================================
 
 // La sesión se valida antes de cargar esta página.
 const usuarioActual = currentUser();
 
-// ---- Productos de ejemplo (luego vendrán de la BD) ----
-// imagen: '' por ahora; cuando tengas las fotos: 'img/leche.png'
-const productos = [
-    { id: 1,  nombre: 'Leche Gloria',     unidad: '1 L',    categoria: 'Lácteos',   precio: 4.80,  imagen: 'img/produ/leche-gloria.webp', etiqueta: 'Popular' },
-    { id: 2,  nombre: 'Yogurt Gloria',    unidad: '1 L',    categoria: 'Lácteos',   precio: 7.50,  imagen: 'img/produ/yogurt-gloria.webp' },
-    { id: 3,  nombre: 'Arroz Costeño',    unidad: '1 kg',   categoria: 'Abarrotes', precio: 4.20,  imagen: 'img/produ/arroz-costeno.webp' },
-    { id: 4,  nombre: 'Aceite Primor',    unidad: '1 L',    categoria: 'Abarrotes', precio: 9.50,  imagen: 'img/produ/aceite-primor.webp' },
-    { id: 5,  nombre: 'Azúcar Rubia',     unidad: '1 kg',   categoria: 'Abarrotes', precio: 3.90,  imagen: 'img/produ/azucar-rubia.webp' },
-    { id: 6,  nombre: 'Inca Kola',        unidad: '1.5 L',  categoria: 'Bebidas',   precio: 7.50,  imagen: 'img/produ/inca-kola.webp', etiqueta: 'Popular' },
-    { id: 7,  nombre: 'Agua San Luis',    unidad: '625 ml', categoria: 'Bebidas',   precio: 1.50,  imagen: 'img/produ/agua-san-luis.webp' },
-    { id: 8,  nombre: 'Pollo entero',     unidad: '1 kg',   categoria: 'Carnes',    precio: 11.90, imagen: 'img/produ/pollo-entero.webp' },
-    { id: 9,  nombre: 'Pan francés',      unidad: '1 und',  categoria: 'Panadería', precio: 0.30,  imagen: 'img/produ/pan-frances.webp', etiqueta: 'Nuevo' },
-    { id: 10, nombre: 'Manzana',          unidad: '1 kg',   categoria: 'Frutas',    precio: 6.00,  imagen: 'img/produ/manzana.webp' },
-    { id: 11, nombre: 'Plátano de seda',  unidad: '1 kg',   categoria: 'Frutas',    precio: 4.50,  imagen: 'img/produ/platano-seda.webp' },
-    { id: 12, nombre: 'Detergente Ariel', unidad: '500 g',  categoria: 'Limpieza',  precio: 6.80,  imagen: 'img/produ/detergente-ariel.webp' }
-].concat(JSON.parse(localStorage.getItem('melba_admin_products') || '[]')
-    .filter(p => p.id > 12)
-    .map(p => ({ id: p.id, nombre: p.nombre, unidad: p.unidad || 'unidad', categoria: p.categoria, precio: Number(p.precio), imagen: p.imagen || '' })));
+// ---- Catálogo: viene de la base de datos (API) ----
+const ETIQUETAS = { '7750001': 'Popular', '7750005': 'Popular', '7750007': 'Nuevo' };
+let productos = [];
+
+function esc(text) {
+    const el = document.createElement('span');
+    el.textContent = text ?? '';
+    return el.innerHTML;
+}
+
+async function cargarProductos() {
+    const res = await fetch('/api/products');
+    if (res.status === 401) { location.replace('index.html'); return; }
+    if (!res.ok) throw new Error('No se pudo cargar el catálogo.');
+    const data = await res.json();
+    productos = data.products.map(p => ({
+        id: p.id,
+        nombre: esc(p.name),
+        unidad: esc(p.unit),
+        categoria: esc(p.category),
+        precio: Number(p.price),
+        stock: Number(p.stock),
+        imagen: p.image ? esc(p.image) : '',
+        etiqueta: p.stock <= 0 ? 'Agotado' : ETIQUETAS[p.code]
+    }));
+}
 
 let carrito = {};               // { idProducto: cantidad }
 let categoriaActiva = 'Todos';
@@ -31,22 +36,19 @@ const $ = id => document.getElementById(id);
 const soles = n => 'S/ ' + n.toFixed(2);
 const porId = id => productos.find(p => p.id === id);
 
-// =====================================
 // INICIALIZACIÓN
-// =====================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     iniciarUsuario();
     iniciarSwiper();
     iniciarCategoriasPortada();
+    iniciarFormularios();
+    renderCarrito();
+    try { await cargarProductos(); } catch (e) { mostrarMsg(e.message); }
     renderChips();
     renderProductos();
-    renderCarrito();
-    iniciarFormularios();
 });
 
-// =====================================
 // USUARIO / MENÚ
-// =====================================
 function iniciarUsuario() {
     $('menuUsuario').textContent = usuarioActual.username;
     $('menuRol').textContent = 'Comprador';
@@ -64,9 +66,7 @@ function iniciarUsuario() {
     $('cerrarSesion').addEventListener('click', e => { e.preventDefault(); logout(); });
 }
 
-// =====================================
 // CARRUSEL SWIPER
-// =====================================
 function iniciarSwiper() {
     if (typeof Swiper === 'undefined') return;
 
@@ -83,9 +83,7 @@ function iniciarSwiper() {
     });
 }
 
-// =====================================
 // CATEGORÍAS DE LA PORTADA -> filtran el catálogo
-// =====================================
 function iniciarCategoriasPortada() {
     document.querySelectorAll('.category-card').forEach(card => {
         card.addEventListener('click', () => {
@@ -96,9 +94,7 @@ function iniciarCategoriasPortada() {
     });
 }
 
-// =====================================
 // CATÁLOGO
-// =====================================
 function renderChips() {
     const cats = ['Todos', ...new Set(productos.map(p => p.categoria))];
     $('chips').innerHTML = '';
@@ -165,10 +161,13 @@ function renderProductos() {
 
 $('buscar').addEventListener('input', renderProductos);
 
-// =====================================
 // CARRITO
-// =====================================
 function agregar(id) {
+    const p = porId(id);
+    if (!p) return;
+    if ((carrito[id] || 0) + 1 > p.stock) {
+        return mostrarMsg(p.stock > 0 ? `Solo quedan ${p.stock} unidades disponibles.` : 'Producto agotado.');
+    }
     carrito[id] = (carrito[id] || 0) + 1;
     mostrarMsg('');
     renderCarrito();
@@ -177,6 +176,7 @@ function agregar(id) {
 function cambiarCantidad(id, delta) {
     const nueva = (carrito[id] || 0) + delta;
     if (nueva <= 0) delete carrito[id];
+    else if (nueva > porId(id).stock) return mostrarMsg(`Solo quedan ${porId(id).stock} unidades disponibles.`);
     else carrito[id] = nueva;
     renderCarrito();
 }
@@ -248,9 +248,7 @@ function renderCarrito() {
     $('total').textContent = soles(totalPedido());
 }
 
-// =====================================
 // FORMULARIOS
-// =====================================
 function mostrarMsg(texto, tipo = 'error') {
     const colores = { ok: '#267447', error: '#b42318' };
     $('msg').textContent = texto;
@@ -275,7 +273,16 @@ function iniciarFormularios() {
     });
 
     // Confirmar pedido
-    $('formPedido').addEventListener('submit', e => {
+        // Pestañas del panel: carrito / mis pedidos
+    $('tabCarrito').addEventListener('click', () => mostrarVista('carrito'));
+    $('tabPedidos').addEventListener('click', () => {
+        $('msgPedido').textContent = '';
+        mostrarVista('pedidos');
+        cargarMisPedidos();
+    });
+
+    // Confirmar pedido
+    $('formPedido').addEventListener('submit', async e => {
         e.preventDefault();
 
         if (Object.keys(carrito).length === 0) return mostrarMsg('Agrega al menos un producto.');
@@ -284,27 +291,30 @@ function iniciarFormularios() {
             return mostrarMsg('Ingresa la dirección de entrega.');
 
         const pedido = {
-            cliente: usuarioActual.name,
-            fecha: new Date().toISOString(),
-            entrega: $('entrega').value,
-            direccion: $('entrega').value === 'Delivery' ? $('direccion').value.trim() : '',
-            pago: $('pago').value,
-            total: totalPedido(),
-            items: Object.entries(carrito).map(([id, c]) => ({
-                nombre: porId(+id).nombre,
-                cantidad: c,
-                unidad: porId(+id).unidad,
-                precio: porId(+id).precio
-            }))
+            delivery: $('entrega').value,
+            address: $('entrega').value === 'Delivery' ? $('direccion').value.trim() : '',
+            payment: $('pago').value,
+            items: Object.entries(carrito).map(([id, c]) => ({ productId: +id, quantity: c }))
         };
 
-        guardarPedido(pedido);
-
-        carrito = {};
-        $('formPedido').reset();
-        $('boxDireccion').classList.add('d-none');
-        renderCarrito();
-        mostrarMsg('¡Pedido enviado! Lo recibirá el vendedor.', 'ok');
+        const boton = e.target.querySelector('button[type="submit"]');
+        boton.disabled = true;
+        try {
+            const creado = await guardarPedido(pedido);
+            carrito = {};
+            $('formPedido').reset();
+            $('boxDireccion').classList.add('d-none');
+            mostrarMsg('');
+            renderCarrito();
+            mostrarVista('pedidos');
+            $('msgPedido').style.color = '#267447';
+            $('msgPedido').textContent = `¡Pedido ${creado.code} enviado! Total ${soles(creado.total)}. Lo recibirá el vendedor.`;
+            await cargarMisPedidos(creado.id);
+        } catch (error) {
+            mostrarMsg(error.message);
+        } finally {
+            boton.disabled = false;
+        }
     });
 
     // Suscripción (demostrativa)
@@ -316,7 +326,71 @@ function iniciarFormularios() {
     });
 }
 
-function guardarPedido(pedido) {
-    // TODO: enviar a la BD para que aparezca como notificación en la vista del vendedor
-    console.log('Pedido enviado:', pedido);
+async function guardarPedido(pedido) {
+    const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pedido)
+    });
+    if (res.status === 401) {
+        location.replace('index.html');
+        throw new Error('Tu sesión expiró. Inicia sesión de nuevo.');
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'No se pudo enviar el pedido.');
+    return data.order;
+}
+
+// MIS PEDIDOS (tickets)
+const ESTADOS = { pendiente: 'Pendiente', armado: 'Armado', completado: 'Completado', cancelado: 'Cancelado' };
+
+function mostrarVista(vista) {
+    const enPedidos = vista === 'pedidos';
+    $('vistaCarrito').classList.toggle('d-none', enPedidos);
+    $('vistaPedidos').classList.toggle('d-none', !enPedidos);
+    $('tabCarrito').classList.toggle('active', !enPedidos);
+    $('tabPedidos').classList.toggle('active', enPedidos);
+}
+
+async function cargarMisPedidos(idAbierto = null) {
+    try {
+        const res = await fetch('/api/orders');
+        if (res.status === 401) { location.replace('index.html'); return; }
+        if (!res.ok) throw new Error('No se pudieron cargar tus pedidos.');
+        const data = await res.json();
+        renderMisPedidos(data.orders, idAbierto);
+    } catch (error) {
+        $('listaPedidos').innerHTML = `<p class="empty-message">${esc(error.message)}</p>`;
+    }
+}
+
+function renderMisPedidos(orders, idAbierto) {
+    const cont = $('listaPedidos');
+    if (orders.length === 0) {
+        cont.innerHTML = '<p class="empty-message">Aún no has hecho pedidos.</p>';
+        return;
+    }
+    cont.innerHTML = '';
+    orders.forEach(o => {
+        const fecha = new Date(o.createdAt).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' });
+        const ticket = document.createElement('article');
+        ticket.className = 'ticket' + (o.id === idAbierto ? ' abierto' : '');
+        ticket.innerHTML = `
+            <button type="button" class="ticket-cab">
+                <span><b>${esc(o.code)}</b><small>${esc(fecha)}</small></span>
+                <span class="ticket-estado estado-${esc(o.status)}">${esc(ESTADOS[o.status] || o.status)}</span>
+                <strong>${soles(Number(o.total))}</strong>
+            </button>
+            <div class="ticket-detalle">
+                <ul>${o.items.map(i => `
+                    <li><span>${Number(i.quantity)} × ${esc(i.name)} <small>(${esc(i.unit)})</small></span>
+                        <span>${soles(Number(i.price) * Number(i.quantity))}</span></li>`).join('')}
+                </ul>
+                <p><b>Entrega:</b> ${esc(o.delivery)}${o.address ? ' · ' + esc(o.address) : ''}</p>
+                <p><b>Pago:</b> ${esc(o.payment)}</p>
+                <p class="ticket-total"><b>Total</b><b>${soles(Number(o.total))}</b></p>
+            </div>`;
+        ticket.querySelector('.ticket-cab').addEventListener('click', () => ticket.classList.toggle('abierto'));
+        cont.appendChild(ticket);
+    });
 }

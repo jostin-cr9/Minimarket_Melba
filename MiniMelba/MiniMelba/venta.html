@@ -194,6 +194,16 @@
             </div>
         </div>
     </div>
+    
+    <!-- AVISO: venta registrada -->
+    <div id="avisoVenta" class="modal oculto" role="alertdialog" aria-modal="true" aria-labelledby="avisoTitulo">
+        <div class="modal-caja aviso-caja">
+            <div class="aviso-icono">✔</div>
+            <p id="avisoTitulo">Venta registrada</p>
+            <small id="avisoCodigo"></small>
+            <button type="button" id="avisoOk" class="btn-verde">OK</button>
+        </div>
+    </div>
 
     <script src="js/auth.js"></script>
     <script>if (!requireRole('vendedor')) document.body.innerHTML = '';</script>

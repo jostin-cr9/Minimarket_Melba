@@ -1,21 +1,30 @@
-const USERS_KEY = 'melba_users';
-const SESSION_KEY = 'melba_session';
-const getUsers = () => JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-const saveUsers = users => localStorage.setItem(USERS_KEY, JSON.stringify(users));
+const ROLE_HOME = { admin: 'admin.html', vendedor: 'vendedor.html', comprador: 'comprador.html' };
 const formLogin = document.getElementById('formLogin');
 const formRegistro = document.getElementById('formRegistro');
 const aviso = document.getElementById('avisoAuth');
 
-try {
-  const existing = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
-  if (existing) location.replace(existing.role === 'vendedor' ? 'vendedor.html' : existing.role === 'admin' ? 'admin.html' : 'comprador.html');
-} catch { localStorage.removeItem(SESSION_KEY); }
-
 function message(text) { aviso.textContent = text; aviso.classList.remove('oculto'); }
-function goToRole(user) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ username: user.username, name: user.name, role: user.role }));
-  location.href = user.role === 'vendedor' ? 'vendedor.html' : user.role === 'admin' ? 'admin.html' : 'comprador.html';
+function goToRole(user) { location.href = ROLE_HOME[user.role] || 'comprador.html'; }
+
+async function api(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  let data = {};
+  try { data = await res.json(); } catch {}
+  return { ok: res.ok, status: res.status, data };
 }
+
+// Si ya hay sesión activa en el servidor, entra directo a su panel
+(async () => {
+  try {
+    const res = await fetch('/api/auth/me');
+    if (res.ok) goToRole((await res.json()).user);
+  } catch {}
+})();
+
 document.getElementById('irRegistro').addEventListener('click', e => {
   e.preventDefault(); aviso.classList.add('oculto'); formLogin.classList.add('oculto'); formRegistro.classList.remove('oculto');
 });
@@ -26,23 +35,36 @@ document.querySelectorAll('.ojo').forEach(btn => btn.addEventListener('click', (
   const input = document.getElementById(btn.dataset.target);
   input.type = input.type === 'password' ? 'text' : 'password';
 }));
-formLogin.addEventListener('submit', e => {
+
+formLogin.addEventListener('submit', async e => {
   e.preventDefault();
   const username = document.getElementById('loginUsuario').value.trim().toLowerCase();
   const password = document.getElementById('loginClave').value;
-  const user = getUsers().find(u => u.username === username && u.password === password);
-  if (!user) return message('Usuario o contraseña incorrectos.');
-  goToRole(user);
+  try {
+    const { ok, status, data } = await api('/api/auth/login', { username, password });
+    if (!ok) {
+      return message(status === 429
+        ? 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.'
+        : (data.error || 'Usuario o contraseña incorrectos.'));
+    }
+    goToRole(data.user);
+  } catch {
+    message('No se pudo conectar con el servidor.');
+  }
 });
-formRegistro.addEventListener('submit', e => {
+
+formRegistro.addEventListener('submit', async e => {
   e.preventDefault();
   const name = document.getElementById('regNombre').value.trim();
   const username = document.getElementById('regUsuario').value.trim().toLowerCase();
   const password = document.getElementById('regClave').value;
   const role = document.getElementById('regRol').value;
-  if (password.length < 6) return message('La contraseña debe tener al menos 6 caracteres.');
-  const users = getUsers();
-  if (users.some(u => u.username === username)) return message('Ese usuario ya existe. Elige otro.');
-  const user = { name, username, password, role };
-  users.push(user); saveUsers(users); goToRole(user);
+  if (password.length < 8) return message('La contraseña debe tener al menos 8 caracteres.');
+  try {
+    const { ok, data } = await api('/api/auth/register', { name, username, password, role });
+    if (!ok) return message(data.error || 'No se pudo crear la cuenta.');
+    goToRole(data.user);
+  } catch {
+    message('No se pudo conectar con el servidor.');
+  }
 });
