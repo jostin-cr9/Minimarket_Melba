@@ -57,3 +57,34 @@ INSERT IGNORE INTO products (id, code, name, category, unit, price, stock, image
 (10,'7750010','Agua San Luis','Bebidas','625 ml',1.50,30,'img/produ/agua-san-luis.webp'),
 (11,'7750011','Manzana','Frutas','1 kg',6.00,20,'img/produ/manzana.webp'),
 (12,'7750012','Plátano de seda','Frutas','1 kg',4.50,20,'img/produ/platano-seda.webp');
+
+CREATE TABLE IF NOT EXISTS orders (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  order_code VARCHAR(40) NOT NULL UNIQUE,
+  buyer_id BIGINT UNSIGNED NOT NULL,
+  customer_name VARCHAR(120) NOT NULL,
+  delivery_type VARCHAR(30) NOT NULL,
+  address VARCHAR(255) NULL,
+  payment_method VARCHAR(30) NOT NULL,
+  total DECIMAL(12,2) NOT NULL,
+  status ENUM('pendiente','armado','completado','cancelado') NOT NULL DEFAULT 'pendiente',
+  seller_id BIGINT UNSIGNED NULL,
+  sale_id BIGINT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_orders_buyer FOREIGN KEY (buyer_id) REFERENCES users(id),
+  CONSTRAINT fk_orders_seller FOREIGN KEY (seller_id) REFERENCES users(id),
+  CONSTRAINT fk_orders_sale FOREIGN KEY (sale_id) REFERENCES sales(id)
+);
+
+CREATE TABLE IF NOT EXISTS order_items (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  order_id BIGINT UNSIGNED NOT NULL,
+  product_id BIGINT UNSIGNED NOT NULL,
+  product_name VARCHAR(120) NOT NULL,
+  unit VARCHAR(40) NOT NULL,
+  quantity INT UNSIGNED NOT NULL,
+  unit_price DECIMAL(10,2) NOT NULL,
+  CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES orders(id),
+  CONSTRAINT fk_order_items_product FOREIGN KEY (product_id) REFERENCES products(id)
+);
