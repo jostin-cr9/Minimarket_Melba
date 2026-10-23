@@ -250,6 +250,17 @@ $('modalNo').addEventListener('click', () => {
   $('modal').classList.add('oculto');
   accionPendiente = null;
 });
+// AVISO: VENTA REGISTRADA
+function mostrarAviso(codigo) {
+  $('avisoCodigo').textContent = codigo;
+  $('avisoVenta').classList.remove('oculto');
+  $('avisoOk').focus();
+}
+function cerrarAviso() {
+  $('avisoVenta').classList.add('oculto');
+  $('buscar').focus();
+}
+$('avisoOk').addEventListener('click', cerrarAviso);
 
 // =====================================
 // COMPLETAR / CANCELAR
@@ -286,7 +297,8 @@ async function registrarVenta() {
 
     reiniciar();
     await refrescarProductos();              // trae los stocks reales de la BD
-    msg('Venta registrada correctamente.', true);
+    msg('');
+    mostrarAviso(cuerpo.transactionCode);
   } catch (error) {
     codigoTx = nuevoCodigoTx();              // código nuevo por si hay que reintentar
     actualizarTx();
@@ -317,7 +329,9 @@ function reiniciar() {
 $('btnCompletar').addEventListener('click', completarVenta);
 $('btnCancelar').addEventListener('click', cancelarTransaccion);
 document.addEventListener('keydown', e => {
-  if (e.key === 'F10') { e.preventDefault(); completarVenta(); }
+  const avisoAbierto = !$('avisoVenta').classList.contains('oculto');
+  if (e.key === 'F10') { e.preventDefault(); if (!avisoAbierto) completarVenta(); }
+  if (e.key === 'Escape' && avisoAbierto) cerrarAviso();
 });
 
 // ---- Inicio: carga el catálogo y lo actualiza cada 30 s ----

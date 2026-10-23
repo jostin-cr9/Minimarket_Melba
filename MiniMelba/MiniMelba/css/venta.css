@@ -122,3 +122,8 @@ tr.bajo td{background:#fef2f2}
 .tabla-resumen td:nth-child(3){display:none}
 .tabla-resumen .qty{gap:4px}
 .tabla-resumen .vacio{padding:20px 0;font-size:12px}
+/* Aviso de venta registrada */
+.aviso-caja{max-width:300px}
+.aviso-icono{width:52px;height:52px;margin:0 auto 12px;border-radius:50%;background:var(--verde);color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center}
+.aviso-caja p{margin-bottom:4px}
+.aviso-caja small{display:block;color:var(--gris);font-size:12px;margin-bottom:14px}
