@@ -3,11 +3,10 @@ const path = require('node:path');
 const express = require('express');
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
-const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
-const { rateLimit } = require('express-rate-limit');
 const db = require('./db');
 const logger = require('./logger');
+const { asyncRoute, requireAuth, requireRole } = require('./middleware/auth');
 
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
@@ -33,20 +32,6 @@ app.use(session({
   cookie: { httpOnly: true, sameSite: 'lax', secure: isProduction, maxAge: 8 * 60 * 60 * 1000 }
 }));
 
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false });
-const asyncRoute = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
-const publicUser = user => ({ id: user.id, name: user.name, username: user.username, role: user.role });
-function requireAuth(req, res, next) {
-  if (!req.session.user) return res.status(401).json({ error: 'Inicia sesión para continuar.' });
-  next();
-}
-function requireRole(...roles) {
-  return (req, res, next) => {
-    if (!req.session.user) return res.status(401).json({ error: 'Inicia sesión para continuar.' });
-    if (!roles.includes(req.session.user.role)) return res.status(403).json({ error: 'No tienes permiso para esta acción.' });
-    next();
-  };
-}
 function validateProduct(body) {
   return typeof body.code === 'string' && body.code.trim().length > 0 && body.code.length <= 30 &&
     typeof body.name === 'string' && body.name.trim().length > 0 && body.name.length <= 120 &&
@@ -60,47 +45,7 @@ app.get('/api/health', asyncRoute(async (req, res) => {
   res.json({ status: 'ok', database: 'connected' });
 }));
 
-app.post('/api/auth/register', authLimiter, asyncRoute(async (req, res) => {
-  const { name, username, password, role } = req.body;
-  if (typeof name !== 'string' || !name.trim() || name.length > 120 || typeof username !== 'string' || !/^[a-zA-Z0-9_.-]{3,50}$/.test(username) || typeof password !== 'string' || password.length < 8 || password.length > 200) {
-    return res.status(400).json({ error: 'Revisa los datos. La contraseña debe tener 8 caracteres como mínimo.' });
-  }
-  if (!['comprador', 'vendedor'].includes(role)) return res.status(400).json({ error: 'El rol elegido no se puede registrar desde la página pública.' });
-  const passwordHash = await bcrypt.hash(password, 12);
-  try {
-    const [result] = await db.execute('INSERT INTO users (name, username, password_hash, role) VALUES (?, ?, ?, ?)', [name.trim(), username.trim().toLowerCase(), passwordHash, role]);
-    const user = { id: result.insertId, name: name.trim(), username: username.trim().toLowerCase(), role };
-    await new Promise((resolve, reject) => req.session.regenerate(err => err ? reject(err) : resolve()));
-    req.session.user = user;
-    logger.info('Cuenta registrada', { username: user.username, role: user.role, ip: req.ip });
-    res.status(201).json({ user });
-  } catch (error) {
-    if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Ese nombre de usuario ya está registrado.' });
-    throw error;
-  }
-}));
-
-app.post('/api/auth/login', authLimiter, asyncRoute(async (req, res) => {
-  const username = String(req.body.username || '').trim().toLowerCase();
-  const password = String(req.body.password || '');
-  const [rows] = await db.execute('SELECT id, name, username, role, password_hash, active FROM users WHERE username = ? LIMIT 1', [username]);
-  const user = rows[0];
-  if (!user || !user.active || !(await bcrypt.compare(password, user.password_hash))) {
-    logger.warn('Inicio de sesión fallido', { username: username.slice(0, 50), ip: req.ip });
-    return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
-  }
-  await new Promise((resolve, reject) => req.session.regenerate(err => err ? reject(err) : resolve()));
-  req.session.user = publicUser(user);
-  logger.info('Inicio de sesión correcto', { username: user.username, role: user.role, ip: req.ip });
-  res.json({ user: req.session.user });
-}));
-
-app.get('/api/auth/me', requireAuth, (req, res) => res.json({ user: req.session.user }));
-app.post('/api/auth/logout', (req, res) => req.session.destroy(err => {
-  if (err) return res.status(500).json({ error: 'No se pudo cerrar la sesión.' });
-  res.clearCookie('melba.sid', { httpOnly: true, sameSite: 'lax', secure: isProduction });
-  res.status(204).end();
-}));
+app.use('/api/auth', require('./routes/auth'));
 
 app.get('/api/products', requireAuth, asyncRoute(async (req, res) => {
   const [rows] = await db.execute('SELECT id, code, name, category, unit, price, stock, image FROM products WHERE active = TRUE ORDER BY name');
@@ -550,7 +495,7 @@ app.get('/api/admin/reports/excel', requireRole('admin'), asyncRoute(async (req,
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Ruta de API no encontrada.' }));
 // Archivos internos que no deben descargarse desde el navegador
-app.use((req, res, next) => /^\/(logs|logger\.js|server\.js|db\.js|schema\.sql|scripts|package(-lock)?\.json)(\/|$)/i.test(req.path) ? res.status(404).end() : next());
+app.use((req, res, next) => /^\/(logs|logger\.js|server\.js|db\.js|schema\.sql|scripts|dao|routes|middleware|package(-lock)?\.json)(\/|$)/i.test(req.path) ? res.status(404).end() : next());
 app.use(express.static(__dirname, {
   dotfiles: 'deny', index: 'index.html', setHeaders(res, filePath) {
     if (/\.(env|sql)$/.test(filePath) || /(^|[\\/])(server|db)\.js$/.test(filePath) || /(^|[\\/])scripts([\\/])/.test(filePath) || /(^|[\\/])package(-lock)?\.json$/.test(filePath)) res.status(404);
