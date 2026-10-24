@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const { rateLimit } = require('express-rate-limit');
 const db = require('./db');
+const logger = require('./logger');
 
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
@@ -71,6 +72,7 @@ app.post('/api/auth/register', authLimiter, asyncRoute(async (req, res) => {
     const user = { id: result.insertId, name: name.trim(), username: username.trim().toLowerCase(), role };
     await new Promise((resolve, reject) => req.session.regenerate(err => err ? reject(err) : resolve()));
     req.session.user = user;
+    logger.info('Cuenta registrada', { username: user.username, role: user.role, ip: req.ip });
     res.status(201).json({ user });
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Ese nombre de usuario ya está registrado.' });
@@ -83,9 +85,13 @@ app.post('/api/auth/login', authLimiter, asyncRoute(async (req, res) => {
   const password = String(req.body.password || '');
   const [rows] = await db.execute('SELECT id, name, username, role, password_hash, active FROM users WHERE username = ? LIMIT 1', [username]);
   const user = rows[0];
-  if (!user || !user.active || !(await bcrypt.compare(password, user.password_hash))) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+  if (!user || !user.active || !(await bcrypt.compare(password, user.password_hash))) {
+    logger.warn('Inicio de sesión fallido', { username: username.slice(0, 50), ip: req.ip });
+    return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+  }
   await new Promise((resolve, reject) => req.session.regenerate(err => err ? reject(err) : resolve()));
   req.session.user = publicUser(user);
+  logger.info('Inicio de sesión correcto', { username: user.username, role: user.role, ip: req.ip });
   res.json({ user: req.session.user });
 }));
 
@@ -247,6 +253,7 @@ app.post('/api/orders', requireRole('comprador'), asyncRoute(async (req, res) =>
       await conn.execute('INSERT INTO order_items (order_id, product_id, product_name, unit, quantity, unit_price) VALUES (?, ?, ?, ?, ?, ?)', [order.insertId, item.id, item.name, item.unit, item.quantity, item.price]);
     }
     await conn.commit();
+    logger.info('Pedido creado', { orderId: order.insertId, buyer: req.session.user.username, total: Number(total.toFixed(2)) });
     res.status(201).json({ order: { id: order.insertId, code: `PED-${String(order.insertId).padStart(4, '0')}`, total: Number(total.toFixed(2)), status: 'pendiente' } });
   } catch (error) {
     await conn.rollback();
@@ -304,6 +311,7 @@ app.patch('/api/orders/:id/status', requireRole('vendedor', 'admin'), asyncRoute
     }
     await conn.execute('UPDATE orders SET status=?, seller_id=?, sale_id=COALESCE(?, sale_id) WHERE id=?', [status, req.session.user.id, saleId, orderId]);
     await conn.commit();
+    logger.info('Cambio de estado de pedido', { orderId, from: order.status, to: status, by: req.session.user.username });
     res.json({ ok: true, status });
   } catch (error) {
     await conn.rollback();
@@ -322,7 +330,10 @@ app.patch('/api/orders/:id/cancel', requireRole('comprador'), asyncRoute(async (
     "UPDATE orders SET status = 'cancelado' WHERE id = ? AND buyer_id = ? AND status = 'pendiente'",
     [orderId, req.session.user.id]
   );
-  if (result.affectedRows === 1) return res.json({ ok: true, status: 'cancelado' });
+  if (result.affectedRows === 1) {
+    logger.info('Pedido cancelado por el cliente', { orderId, buyer: req.session.user.username });
+    return res.json({ ok: true, status: 'cancelado' });
+  }
 
   const [rows] = await db.execute('SELECT status FROM orders WHERE id = ? AND buyer_id = ?', [orderId, req.session.user.id]);
   if (!rows[0]) return res.status(404).json({ error: 'No se encontró el pedido.' });
@@ -538,16 +549,22 @@ app.get('/api/admin/reports/excel', requireRole('admin'), asyncRoute(async (req,
 }));
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Ruta de API no encontrada.' }));
+// Archivos internos que no deben descargarse desde el navegador
+app.use((req, res, next) => /^\/(logs|logger\.js|server\.js|db\.js|schema\.sql|scripts|package(-lock)?\.json)(\/|$)/i.test(req.path) ? res.status(404).end() : next());
 app.use(express.static(__dirname, {
   dotfiles: 'deny', index: 'index.html', setHeaders(res, filePath) {
     if (/\.(env|sql)$/.test(filePath) || /(^|[\\/])(server|db)\.js$/.test(filePath) || /(^|[\\/])scripts([\\/])/.test(filePath) || /(^|[\\/])package(-lock)?\.json$/.test(filePath)) res.status(404);
   }
 }));
 app.use((error, req, res, next) => {
-  console.error(error);
+  logger.error('Error no controlado', { method: req.method, url: req.originalUrl, code: error.code, message: error.message, stack: error.stack });
   if (res.headersSent) return next(error);
   res.status(500).json({ error: 'Ocurrió un error interno. Intenta nuevamente.' });
 });
 
 const port = Number(process.env.PORT || 3000);
-app.listen(port, () => console.log(`Minimarket Melba listo en http://localhost:${port}`));
+app.listen(port, () => logger.info(`Minimarket Melba listo en http://localhost:${port}`));
+db.query('SELECT 1')
+  .then(() => logger.info('Conexión a MySQL correcta'))
+  .catch(error => logger.error('No se pudo conectar a MySQL', { code: error.code, message: error.message }));
+process.on('unhandledRejection', reason => logger.error('Promesa rechazada sin manejar', { reason: String(reason) }));
