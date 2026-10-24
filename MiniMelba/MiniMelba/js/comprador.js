@@ -130,8 +130,8 @@ function renderProductos() {
                 <div class="product-image">
                     ${p.etiqueta ? `<span class="product-tag ${p.etiqueta === 'Nuevo' ? 'new-tag' : ''}">${p.etiqueta}</span>` : ''}
                     ${p.imagen
-                        ? `<img src="${p.imagen}" alt="${p.nombre}">`
-                        : '<div class="img-placeholder"><i class="bi bi-basket2"></i></div>'}
+                ? `<img src="${p.imagen}" alt="${p.nombre}">`
+                : '<div class="img-placeholder"><i class="bi bi-basket2"></i></div>'}
                 </div>
                 <div class="product-info">
                     <span class="product-category">${p.categoria.toUpperCase()}</span>
@@ -273,7 +273,7 @@ function iniciarFormularios() {
     });
 
     // Confirmar pedido
-        // Pestañas del panel: carrito / mis pedidos
+    // Pestañas del panel: carrito / mis pedidos
     $('tabCarrito').addEventListener('click', () => mostrarVista('carrito'));
     $('tabPedidos').addEventListener('click', () => {
         $('msgPedido').textContent = '';
@@ -388,9 +388,29 @@ function renderMisPedidos(orders, idAbierto) {
                 </ul>
                 <p><b>Entrega:</b> ${esc(o.delivery)}${o.address ? ' · ' + esc(o.address) : ''}</p>
                 <p><b>Pago:</b> ${esc(o.payment)}</p>
-                <p class="ticket-total"><b>Total</b><b>${soles(Number(o.total))}</b></p>
+                                <p class="ticket-total"><b>Total</b><b>${soles(Number(o.total))}</b></p>
+                ${o.status === 'pendiente' ? '<button type="button" class="btn-cancelar-pedido">Cancelar pedido</button>' : ''}
             </div>`;
         ticket.querySelector('.ticket-cab').addEventListener('click', () => ticket.classList.toggle('abierto'));
+        const btnCancelar = ticket.querySelector('.btn-cancelar-pedido');
+        if (btnCancelar) btnCancelar.addEventListener('click', () => cancelarPedido(o));
         cont.appendChild(ticket);
     });
+}
+
+async function cancelarPedido(o) {
+    if (!confirm(`¿Cancelar el pedido ${o.code}?`)) return;
+    const msg = $('msgPedido');
+    try {
+        const res = await fetch(`/api/orders/${o.id}/cancel`, { method: 'PATCH' });
+        if (res.status === 401) { location.replace('index.html'); return; }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'No se pudo cancelar el pedido.');
+        msg.style.color = '#267447';
+        msg.textContent = `Pedido ${o.code} cancelado.`;
+    } catch (error) {
+        msg.style.color = '#c0392b';
+        msg.textContent = error.message;
+    }
+    await cargarMisPedidos(o.id);
 }

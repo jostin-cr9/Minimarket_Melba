@@ -312,7 +312,22 @@ app.patch('/api/orders/:id/status', requireRole('vendedor', 'admin'), asyncRoute
     throw error;
   } finally { conn.release(); }
 }));
+// El comprador cancela SU pedido, solo si sigue pendiente
+app.patch('/api/orders/:id/cancel', requireRole('comprador'), asyncRoute(async (req, res) => {
+  const orderId = Number(req.params.id);
+  if (!Number.isInteger(orderId) || orderId < 1) return res.status(400).json({ error: 'Datos no válidos.' });
 
+  // Un solo UPDATE condicionado: solo cambia si es suyo y sigue pendiente (evita choques con el vendedor)
+  const [result] = await db.execute(
+    "UPDATE orders SET status = 'cancelado' WHERE id = ? AND buyer_id = ? AND status = 'pendiente'",
+    [orderId, req.session.user.id]
+  );
+  if (result.affectedRows === 1) return res.json({ ok: true, status: 'cancelado' });
+
+  const [rows] = await db.execute('SELECT status FROM orders WHERE id = ? AND buyer_id = ?', [orderId, req.session.user.id]);
+  if (!rows[0]) return res.status(404).json({ error: 'No se encontró el pedido.' });
+  res.status(409).json({ error: `Este pedido ya está ${rows[0].status} y no se puede cancelar.` });
+}));
 // REPORTES (admin) 
 const REPORT_RANGES = {
   day: 'Hoy',
