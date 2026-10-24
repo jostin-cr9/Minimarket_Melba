@@ -12,4 +12,10 @@ async function create({ name, username, passwordHash, role }) {
   return result.insertId;
 }
 
-module.exports = { findByUsername, create };
+async function findAll() {
+  const [users] = await db.execute(
+    'SELECT id, name, username, role, active, created_at AS createdAt FROM users ORDER BY created_at DESC');
+  return users;
+}
+
+module.exports = { findByUsername, create, findAll };

@@ -40,62 +40,8 @@ app.get('/api/health', asyncRoute(async (req, res) => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/orders', require('./routes/orders'));
-
-app.get('/api/admin/summary', requireRole('admin'), asyncRoute(async (req, res) => {
-  const [[summary]] = await db.query(`SELECT
-    (SELECT COUNT(*) FROM products WHERE active=TRUE) AS productCount,
-    (SELECT COALESCE(SUM(stock),0) FROM products WHERE active=TRUE) AS stockUnits,
-    (SELECT COUNT(*) FROM sales) AS saleCount,
-    (SELECT COUNT(*) FROM products WHERE active=TRUE AND stock<=5) AS lowStockCount`);
-  const [lowStock] = await db.execute('SELECT id, code, name, category, price, stock FROM products WHERE active=TRUE AND stock<=5 ORDER BY stock, name');
-  res.json({ summary, lowStock });
-}));
-app.get('/api/admin/users', requireRole('admin'), asyncRoute(async (req, res) => {
-  const [users] = await db.execute('SELECT id, name, username, role, active, created_at AS createdAt FROM users ORDER BY created_at DESC');
-  res.json({ users });
-}));
-app.get('/api/admin/sales', requireRole('admin'), asyncRoute(async (req, res) => {
-  const [sales] = await db.execute(`SELECT s.id, s.transaction_code AS transaccion, s.created_at AS fecha,
-    u.username AS vendedor, s.customer_name AS cliente, s.payment_method AS pago, s.total
-    FROM sales s JOIN users u ON u.id=s.seller_id ORDER BY s.created_at DESC LIMIT 500`);
-  res.json({ sales });
-}));
-
-app.post('/api/sales', requireRole('vendedor'), asyncRoute(async (req, res) => {
-  const { transactionCode, customerName, paymentMethod, items } = req.body;
-  if (typeof transactionCode !== 'string' || !Array.isArray(items) || items.length < 1 || items.length > 100 || !['Efectivo', 'Tarjeta', 'Yape/Plin'].includes(paymentMethod)) return res.status(400).json({ error: 'Datos de venta incompletos o incorrectos.' });
-  const normalized = new Map();
-  for (const item of items) {
-    const productId = Number(item.productId), quantity = Number(item.quantity);
-    if (!Number.isInteger(productId) || productId < 1 || !Number.isInteger(quantity) || quantity < 1 || quantity > 10000) return res.status(400).json({ error: 'Revisa las cantidades de productos.' });
-    normalized.set(productId, (normalized.get(productId) || 0) + quantity);
-  }
-  const conn = await db.getConnection();
-  try {
-    await conn.beginTransaction();
-    let total = 0;
-    const details = [];
-    for (const [productId, quantity] of normalized) {
-      const [rows] = await conn.execute('SELECT id, name, price, stock FROM products WHERE id=? AND active=TRUE FOR UPDATE', [productId]);
-      const product = rows[0];
-      if (!product || product.stock < quantity) throw Object.assign(new Error(`Stock insuficiente para ${product?.name || 'un producto'}.`), { status: 409 });
-      total += Number(product.price) * quantity;
-      details.push({ ...product, quantity });
-    }
-    const [sale] = await conn.execute('INSERT INTO sales (transaction_code, seller_id, customer_name, payment_method, total) VALUES (?, ?, ?, ?, ?)', [transactionCode, req.session.user.id, String(customerName || 'Cliente genérico').slice(0, 120), paymentMethod, total.toFixed(2)]);
-    for (const item of details) {
-      await conn.execute('INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price) VALUES (?, ?, ?, ?, ?)', [sale.insertId, item.id, item.name, item.quantity, item.price]);
-      await conn.execute('UPDATE products SET stock=stock-? WHERE id=?', [item.quantity, item.id]);
-    }
-    await conn.commit();
-    res.status(201).json({ saleId: sale.insertId, total: Number(total.toFixed(2)) });
-  } catch (error) {
-    await conn.rollback();
-    if (error.status) return res.status(error.status).json({ error: error.message });
-    if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'El código de transacción ya existe. Intenta completar nuevamente.' });
-    throw error;
-  } finally { conn.release(); }
-}));
+app.use('/api/sales', require('./routes/sales'));
+app.use('/api/admin', require('./routes/admin'));
 
 // REPORTES (admin) 
 const REPORT_RANGES = {

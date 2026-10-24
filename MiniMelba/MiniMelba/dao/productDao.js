@@ -42,4 +42,30 @@ async function decreaseStock(conn, id, quantity) {
   await conn.execute('UPDATE products SET stock = stock - ? WHERE id = ?', [quantity, id]);
 }
 
-module.exports = { findAllActive, create, update, deactivate, findActiveForOrder, lockStock, decreaseStock };
+// La caja bloquea el producto mientras valida y descuenta el stock
+async function findActiveForUpdate(conn, id) {
+  const [rows] = await conn.execute('SELECT id, name, price, stock FROM products WHERE id=? AND active=TRUE FOR UPDATE', [id]);
+  return rows[0];
+}
+
+// Para el resumen del panel admin
+async function getSummary() {
+  const [[summary]] = await db.query(`SELECT
+    (SELECT COUNT(*) FROM products WHERE active=TRUE) AS productCount,
+    (SELECT COALESCE(SUM(stock),0) FROM products WHERE active=TRUE) AS stockUnits,
+    (SELECT COUNT(*) FROM sales) AS saleCount,
+    (SELECT COUNT(*) FROM products WHERE active=TRUE AND stock<=5) AS lowStockCount`);
+  return summary;
+}
+
+async function findLowStock() {
+  const [rows] = await db.execute(
+    'SELECT id, code, name, category, price, stock FROM products WHERE active=TRUE AND stock<=5 ORDER BY stock, name');
+  return rows;
+}
+
+module.exports = {
+  findAllActive, create, update, deactivate,
+  findActiveForOrder, lockStock, decreaseStock,
+  findActiveForUpdate, getSummary, findLowStock
+};
