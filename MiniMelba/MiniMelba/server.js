@@ -313,6 +313,84 @@ app.patch('/api/orders/:id/status', requireRole('vendedor', 'admin'), asyncRoute
   } finally { conn.release(); }
 }));
 
+// REPORTES (admin) 
+const REPORT_RANGES = {
+  day: 'Hoy',
+  week: 'Últimos 7 días',
+  month: 'Últimos 30 días',
+  year: 'Último año',
+  '5years': 'Últimos 5 años'
+};
+const REPORT_IGV = 0.18; // los precios ya incluyen IGV (igual que en la caja)
+const reportMoney = (v) => Math.round((Number(v) || 0) * 100) / 100;
+
+function reportSince(range) {
+  const d = new Date();
+  if (range === 'day') d.setHours(0, 0, 0, 0);
+  else if (range === 'week') d.setDate(d.getDate() - 7);
+  else if (range === 'month') d.setDate(d.getDate() - 30);
+  else if (range === 'year') d.setFullYear(d.getFullYear() - 1);
+  else d.setFullYear(d.getFullYear() - 5);
+  return d;
+}
+
+async function buildReport(range) {
+  const since = reportSince(range);
+  const q = async (sql) => (await db.execute(sql, [since]))[0];
+
+  const [totales, unidades, productos, vendedores, porDia, ventas] = await Promise.all([
+    q('SELECT COUNT(*) AS ventas, COALESCE(SUM(total), 0) AS total FROM sales WHERE created_at >= ?'),
+    q(`SELECT COALESCE(SUM(si.quantity), 0) AS unidades FROM sale_items si
+       JOIN sales s ON s.id = si.sale_id WHERE s.created_at >= ?`),
+    q(`SELECT si.product_id AS productId, MAX(si.product_name) AS producto,
+         SUM(si.quantity) AS unidades, SUM(si.quantity * si.unit_price) AS monto
+       FROM sale_items si JOIN sales s ON s.id = si.sale_id
+       WHERE s.created_at >= ?
+       GROUP BY si.product_id
+       ORDER BY unidades DESC, monto DESC LIMIT 10`),
+    q(`SELECT u.id AS sellerId, u.name AS vendedor, u.username, COUNT(*) AS ventas, SUM(s.total) AS total
+       FROM sales s JOIN users u ON u.id = s.seller_id
+       WHERE s.created_at >= ?
+       GROUP BY u.id, u.name, u.username
+       ORDER BY total DESC`),
+    q(`SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS dia, COUNT(*) AS ventas, SUM(total) AS total
+       FROM sales WHERE created_at >= ?
+       GROUP BY dia ORDER BY dia`),
+    q(`SELECT s.id, s.transaction_code AS transaccion, s.created_at AS fecha, u.username AS vendedor,
+         s.customer_name AS cliente, s.payment_method AS pago, s.total
+       FROM sales s JOIN users u ON u.id = s.seller_id
+       WHERE s.created_at >= ?
+       ORDER BY s.created_at DESC LIMIT 200`)
+  ]);
+
+  const total = reportMoney(totales[0].total);
+  const subtotal = reportMoney(total / (1 + REPORT_IGV));
+  return {
+    range,
+    label: REPORT_RANGES[range],
+    since,
+    resumen: {
+      ventas: Number(totales[0].ventas),
+      unidades: Number(unidades[0].unidades),
+      subtotal,
+      igv: reportMoney(total - subtotal),
+      total
+    },
+    productos: productos.map(p => ({ ...p, unidades: Number(p.unidades), monto: reportMoney(p.monto) })),
+    vendedores: vendedores.map(v => ({ ...v, ventas: Number(v.ventas), total: reportMoney(v.total) })),
+    porDia: porDia.map(d => ({ ...d, ventas: Number(d.ventas), total: reportMoney(d.total) })),
+    ventas
+  };
+}
+
+app.get('/api/admin/reports', requireRole('admin'), asyncRoute(async (req, res) => {
+  const range = String(req.query.range || 'day');
+  if (!Object.hasOwn(REPORT_RANGES, range)) {
+    return res.status(400).json({ error: 'Periodo no válido. Usa: day, week, month, year o 5years.' });
+  }
+  res.json(await buildReport(range));
+}));
+
 app.use('/api', (req, res) => res.status(404).json({ error: 'Ruta de API no encontrada.' }));
 app.use(express.static(__dirname, {
   dotfiles: 'deny', index: 'index.html', setHeaders(res, filePath) {
