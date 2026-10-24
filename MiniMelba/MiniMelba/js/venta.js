@@ -8,6 +8,8 @@ let usuarioActual;
 let productos = [];
 
 let venta = {};              // { idProducto: cantidad }
+let pedidoSeleccionado = null;
+let pedidosDisponibles = new Map();
 let codigoTx = '';
 let accionPendiente = null;
 let ocupado = false;
@@ -47,6 +49,7 @@ async function cargarProductos() {
 
 // Si el stock cambió, la venta en curso se ajusta a lo disponible
 function ajustarVenta() {
+  if (pedidoSeleccionado) return; // el inventario del pedido ya está reservado
   Object.keys(venta).forEach(id => {
     const p = porId(+id);
     if (!p || p.stock <= 0) delete venta[id];
@@ -120,7 +123,7 @@ function renderProductos() {
       <td>${esc(p.categoria)}</td>
       <td class="r">${soles(p.precio)}</td>
       <td class="c ${bajo ? 'stock-bajo' : ''}">${p.stock}${bajo ? ' ⚠' : ''}</td>
-      <td class="c"><button type="button" class="btn-add" ${p.stock === 0 ? 'disabled' : ''}>Agregar</button></td>`;
+      <td class="c"><button type="button" class="btn-add" ${p.stock === 0 || pedidoSeleccionado ? 'disabled' : ''}>Agregar</button></td>`;
     tr.querySelector('.btn-add').addEventListener('click', () => agregar(p));
     tb.appendChild(tr);
   });
@@ -171,46 +174,62 @@ function cambiarCantidad(id, delta) {
 }
 
 function totalVenta() {
+  if (pedidoSeleccionado) return Number(pedidoSeleccionado.total);
   return Object.entries(venta).reduce((s, [id, c]) => s + porId(+id).precio * c, 0);
 }
 
 function render() {
   const ids = Object.keys(venta);
+  const lineas = pedidoSeleccionado
+    ? pedidoSeleccionado.items.map(item => ({
+        id: Number(item.productId),
+        nombre: `${item.name}${item.unit ? ` ${item.unit}` : ''}`,
+        cantidad: Number(item.quantity),
+        precio: Number(item.price)
+      }))
+    : ids.map(id => {
+        const p = porId(+id);
+        return { id: +id, nombre: p.nombre, cantidad: venta[id], precio: p.precio };
+      });
   const tb = $('tbVenta');
   tb.innerHTML = '';
 
-  if (ids.length === 0) {
+  if (lineas.length === 0) {
     tb.innerHTML = '<tr><td colspan="5" class="vacio">Aún no hay productos en la venta</td></tr>';
   }
 
-  ids.forEach(id => {
-    const p = porId(+id);
+  lineas.forEach(linea => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${esc(p.nombre)}</td>
-      <td class="c"><span class="qty">
-        <button type="button" data-d="-1">−</button>${venta[id]}<button type="button" data-d="1">+</button>
-      </span></td>
-      <td class="r">${soles(p.precio)}</td>
-      <td class="r sub">${soles(p.precio * venta[id])}</td>
-      <td class="c">
-        <button type="button" class="btn-del" aria-label="Quitar">
+    if (pedidoSeleccionado) {
+      tr.innerHTML = `
+        <td>${esc(linea.nombre)}</td><td class="c">${linea.cantidad}</td>
+        <td class="r">${soles(linea.precio)}</td>
+        <td class="r sub">${soles(linea.precio * linea.cantidad)}</td><td class="c"></td>`;
+    } else {
+      tr.innerHTML = `
+        <td>${esc(linea.nombre)}</td>
+        <td class="c"><span class="qty">
+          <button type="button" data-d="-1">−</button>${linea.cantidad}<button type="button" data-d="1">+</button>
+        </span></td>
+        <td class="r">${soles(linea.precio)}</td>
+        <td class="r sub">${soles(linea.precio * linea.cantidad)}</td>
+        <td class="c"><button type="button" class="btn-del" aria-label="Quitar">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
-        </button>
-      </td>`;
-    tr.querySelectorAll('.qty button').forEach(b =>
-      b.addEventListener('click', () => cambiarCantidad(+id, +b.dataset.d)));
-    tr.querySelector('.btn-del').addEventListener('click', () => {
-      delete venta[id];
-      render();
-    });
+        </button></td>`;
+      tr.querySelectorAll('.qty button').forEach(b =>
+        b.addEventListener('click', () => cambiarCantidad(linea.id, +b.dataset.d)));
+      tr.querySelector('.btn-del').addEventListener('click', () => {
+        delete venta[linea.id];
+        render();
+      });
+    }
     tb.appendChild(tr);
   });
 
   // Resumen (el precio ya incluye IGV)
   const total = totalVenta();
   const base = total / (1 + IGV);
-  $('lineas').textContent = 'Líneas: ' + ids.length;
+  $('lineas').textContent = 'Líneas: ' + lineas.length;
   $('subtotal').textContent = soles(base);
   $('igv').textContent = soles(total - base);
   $('total').textContent = soles(total);
