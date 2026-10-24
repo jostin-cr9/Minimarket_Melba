@@ -29,6 +29,84 @@ function msg(texto, ok = false) {
   $('msg').classList.toggle('ok', ok);
 }
 
+function setModoPedido(activo) {
+  ['buscar', 'cantidad', 'btnAgregar', 'pago'].forEach(id => { $(id).disabled = activo; });
+  $('cliente').readOnly = activo;
+  $('btnCompletar').textContent = activo ? 'Completar pedido' : 'Completar Venta (F10)';
+  $('btnCancelar').textContent = activo ? 'Quitar pedido de la caja' : 'Cancelar Transacción';
+}
+
+function seleccionarPedido(id) {
+  pedidoSeleccionado = id ? pedidosDisponibles.get(String(id)) || null : null;
+  venta = {};
+  const pedido = pedidoSeleccionado;
+  setModoPedido(Boolean(pedido));
+  if (pedido) {
+    $('cliente').value = pedido.customer;
+    $('pago').value = pedido.payment === 'Yape/Plin' ? 'Yape / Plin' : pedido.payment;
+    $('pedidoDetalle').textContent = `${pedido.code} · ${pedido.delivery}${pedido.address ? ` · ${pedido.address}` : ''} · ${pedido.status}`;
+    $('recibido').value = pedido.payment === 'Efectivo' ? Number(pedido.total).toFixed(2) : '';
+  } else {
+    $('cliente').value = 'Cliente Genérico (Público General)';
+    $('pago').value = 'Efectivo';
+    $('pedidoDetalle').textContent = pedidosDisponibles.size
+      ? ''
+      : 'No hay pedidos web pendientes o armados. Puedes registrar una venta presencial.';
+    $('recibido').value = '';
+  }
+  $('boxEfectivo').classList.toggle('oculto', $('pago').value !== 'Efectivo');
+  renderProductos();
+  render();
+}
+
+async function cargarPedidosPendientes() {
+  try {
+    const [pendingResponse, assembledResponse] = await Promise.all([
+      fetch('/api/orders?status=pendiente'),
+      fetch('/api/orders?status=armado')
+    ]);
+    if (pendingResponse.status === 401 || assembledResponse.status === 401) {
+      location.replace('index.html');
+      return;
+    }
+    if (!pendingResponse.ok || !assembledResponse.ok) throw new Error('No se pudieron cargar los pedidos web.');
+    const [pendingData, assembledData] = await Promise.all([pendingResponse.json(), assembledResponse.json()]);
+    const orders = [...pendingData.orders, ...assembledData.orders].sort((a, b) => a.id - b.id);
+    const selectedId = pedidoSeleccionado ? String(pedidoSeleccionado.id) : '';
+    pedidosDisponibles = new Map(orders.map(order => [String(order.id), order]));
+
+    const selector = $('pedidoCliente');
+    selector.innerHTML = '';
+    const directOption = document.createElement('option');
+    directOption.value = '';
+    directOption.textContent = 'Venta presencial (sin pedido)';
+    selector.appendChild(directOption);
+    orders.forEach(order => {
+      const option = document.createElement('option');
+      option.value = String(order.id);
+      option.textContent = `${order.code} · ${order.customer} · ${soles(Number(order.total))} · ${order.status}`;
+      selector.appendChild(option);
+    });
+
+    if (selectedId && pedidosDisponibles.has(selectedId)) {
+      pedidoSeleccionado = pedidosDisponibles.get(selectedId);
+      selector.value = selectedId;
+    } else if (selectedId) {
+      seleccionarPedido('');
+      msg('El pedido dejó de estar pendiente; vuelve al panel para actualizar la lista.');
+    } else {
+      selector.value = '';
+      if (Object.keys(venta).length === 0) {
+        $('pedidoDetalle').textContent = orders.length
+          ? ''
+          : 'No hay pedidos web pendientes o armados. Puedes registrar una venta presencial.';
+      }
+    }
+  } catch (error) {
+    $('pedidoDetalle').textContent = error.message;
+  }
+}
+
 async function cargarProductos() {
   const res = await fetch('/api/products');
   if (res.status === 401) {
@@ -255,6 +333,7 @@ $('pago').addEventListener('change', () => {
   $('boxEfectivo').classList.toggle('oculto', $('pago').value !== 'Efectivo');
 });
 $('recibido').addEventListener('input', calcularVuelto);
+$('pedidoCliente').addEventListener('change', () => seleccionarPedido($('pedidoCliente').value));
 
 // =====================================
 // MODAL Sí / No
@@ -292,7 +371,7 @@ function completarVenta() {
   if (ocupado) return;
   const total = totalVenta();
   if (total === 0) return msg('Agregue productos a la venta.');
-  if ($('pago').value === 'Efectivo' && (parseFloat($('recibido').value) || 0) < total)
+  if (!pedidoSeleccionado && $('pago').value === 'Efectivo' && (parseFloat($('recibido').value) || 0) < total)
     return msg('El monto recibido es menor al total.');
 
   pedirConfirmacion(`¿Desea completar la venta por ${soles(total)}?`, registrarVenta);
@@ -301,14 +380,30 @@ function completarVenta() {
 async function registrarVenta() {
   if (ocupado) return;
   ocupado = true;
-  const cuerpo = {
-    transactionCode: codigoTx,
-    customerName: $('cliente').value.trim() || 'Cliente Genérico (Público General)',
-    paymentMethod: $('pago').value === 'Yape / Plin' ? 'Yape/Plin' : $('pago').value,
-    items: Object.entries(venta).map(([id, c]) => ({ productId: +id, quantity: c }))
-  };
-
   try {
+    if (pedidoSeleccionado) {
+      const pedido = pedidoSeleccionado;
+      const res = await fetch(`/api/orders/${pedido.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'completado' })
+      });
+      if (res.status === 401) { location.replace('index.html'); return; }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'No se pudo completar el pedido.');
+      reiniciar();
+      await Promise.all([refrescarProductos(), cargarPedidosPendientes()]);
+      msg('');
+      mostrarAviso(pedido.code);
+      return;
+    }
+
+    const cuerpo = {
+      transactionCode: codigoTx,
+      customerName: $('cliente').value.trim() || 'Cliente Genérico (Público General)',
+      paymentMethod: $('pago').value === 'Yape / Plin' ? 'Yape/Plin' : $('pago').value,
+      items: Object.entries(venta).map(([id, c]) => ({ productId: +id, quantity: c }))
+    };
     const res = await fetch('/api/sales', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -323,8 +418,10 @@ async function registrarVenta() {
     msg('');
     mostrarAviso(cuerpo.transactionCode);
   } catch (error) {
-    codigoTx = nuevoCodigoTx();              // código nuevo por si hay que reintentar
-    actualizarTx();
+    if (!pedidoSeleccionado) {
+      codigoTx = nuevoCodigoTx();            // código nuevo por si hay que reintentar
+      actualizarTx();
+    }
     await refrescarProductos();
     msg(error.message);
   } finally {
@@ -333,6 +430,13 @@ async function registrarVenta() {
 }
 
 function cancelarTransaccion() {
+  if (pedidoSeleccionado) {
+    pedirConfirmacion('¿Quitar el pedido de la caja? El pedido seguirá pendiente.', () => {
+      reiniciar();
+      msg('Pedido retirado de la caja.');
+    });
+    return;
+  }
   if (Object.keys(venta).length === 0) return msg('No hay una venta en curso.');
   pedirConfirmacion('¿Desea cancelar la transacción?', () => {
     reiniciar();
@@ -342,10 +446,19 @@ function cancelarTransaccion() {
 
 function reiniciar() {
   venta = {};
+  pedidoSeleccionado = null;
+  $('pedidoCliente').value = '';
+  $('pedidoDetalle').textContent = pedidosDisponibles.size
+    ? ''
+    : 'No hay pedidos web pendientes o armados. Puedes registrar una venta presencial.';
+  setModoPedido(false);
   codigoTx = nuevoCodigoTx();
   $('recibido').value = '';
   $('cliente').value = 'Cliente Genérico (Público General)';
+  $('pago').value = 'Efectivo';
+  $('boxEfectivo').classList.remove('oculto');
   actualizarTx();
+  renderProductos();
   render();
 }
 
@@ -357,6 +470,12 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && avisoAbierto) cerrarAviso();
 });
 
-// ---- Inicio: carga el catálogo y lo actualiza cada 30 s ----
+// ---- Inicio: carga catálogo y pedidos; refresca ambos cada 30 s ----
 refrescarProductos();
-setInterval(() => { if (!ocupado && !document.hidden) refrescarProductos(); }, 30000);
+cargarPedidosPendientes();
+setInterval(() => {
+  if (!ocupado && !document.hidden) {
+    refrescarProductos();
+    cargarPedidosPendientes();
+  }
+}, 30000);
