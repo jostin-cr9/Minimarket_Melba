@@ -18,19 +18,20 @@ async function api(url, options = {}) {
   const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options });
   if (res.status === 401) { location.replace('index.html'); throw new Error('Sesión expirada.'); }
   let data = {};
-  if (res.status !== 204) { try { data = await res.json(); } catch {} }
+  if (res.status !== 204) { try { data = await res.json(); } catch { } }
   if (!res.ok) throw new Error(data.error || 'Ocurrió un error. Intenta nuevamente.');
   return data;
 }
 
 //  Navegación 
-const TITLES = { inicio: 'Resumen', productos: 'Productos e inventario', ventas: 'Ventas', usuarios: 'Usuarios' };
+const TITLES = { inicio: 'Resumen', productos: 'Productos e inventario', ventas: 'Ventas', reportes: 'Reportes', usuarios: 'Usuarios' };
 
 function navigate(view) {
   document.querySelectorAll('.view').forEach(el => el.classList.toggle('hidden', el.id !== `view-${view}`));
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === view));
   $('pageTitle').textContent = TITLES[view];
   if (view === 'ventas') renderSales();
+  if (view === 'reportes') loadReport();
   if (view === 'usuarios') renderUsers();
 }
 document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => navigate(btn.dataset.view)));
@@ -136,7 +137,68 @@ async function renderUsers() {
       : '<tr><td class="empty" colspan="3">No hay cuentas registradas.</td></tr>';
   } catch (error) { alert(error.message); }
 }
+// Reportes
+let reportRange = 'day';
 
+async function loadReport() {
+  const pedido = reportRange;
+  try {
+    const r = await api(`/api/admin/reports?range=${pedido}`);
+    if (pedido !== reportRange) return; // llegó una respuesta vieja, se ignora
+    $('repVentas').textContent = r.resumen.ventas;
+    $('repUnidades').textContent = r.resumen.unidades;
+    $('repTotal').textContent = money(r.resumen.total);
+    $('repLabel').textContent = r.label;
+    $('reportInfo').textContent = `Período: ${r.label} · desde ${new Date(r.since).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })}`;
+
+    $('topProductRows').innerHTML = r.productos.length
+      ? r.productos.map((p, i) => `<tr><td>${i + 1}</td><td><b>${safe(p.producto)}</b></td><td>${p.unidades}</td><td>${money(p.monto)}</td></tr>`).join('')
+      : '<tr><td class="empty" colspan="4">Sin ventas en este período.</td></tr>';
+
+    $('sellerRows').innerHTML = r.vendedores.length
+      ? r.vendedores.map(v => `<tr><td><b>${safe(v.vendedor)}</b></td><td>${safe(v.username)}</td><td>${v.ventas}</td><td>${money(v.total)}</td></tr>`).join('')
+      : '<tr><td class="empty" colspan="4">Sin ventas en este período.</td></tr>';
+
+    $('dayRows').innerHTML = r.porDia.length
+      ? [...r.porDia].reverse().map(d => `<tr><td>${safe(d.dia.split('-').reverse().join('/'))}</td><td>${d.ventas}</td><td>${money(d.total)}</td></tr>`).join('')
+      : '<tr><td class="empty" colspan="3">Sin ventas en este período.</td></tr>';
+  } catch (error) { alert(error.message); }
+}
+
+async function descargarExcel() {
+  const btn = $('btnExcel');
+  btn.disabled = true;
+  btn.textContent = 'Generando...';
+  try {
+    const res = await fetch(`/api/admin/reports/excel?range=${reportRange}`);
+    if (res.status === 401) { location.replace('index.html'); return; }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'No se pudo generar el Excel.');
+    }
+    const blob = await res.blob();
+    const nombre = (res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/)?.[1] || `reporte-ventas-${reportRange}.xlsx`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombre;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (error) { alert(error.message); }
+  finally {
+    btn.disabled = false;
+    btn.textContent = '⬇ Generar Excel';
+  }
+}
+
+document.querySelectorAll('.range-btn').forEach(b => b.addEventListener('click', () => {
+  reportRange = b.dataset.range;
+  document.querySelectorAll('.range-btn').forEach(x => x.classList.toggle('active', x === b));
+  loadReport();
+}));
+$('btnExcel').addEventListener('click', descargarExcel);
 //  Inicio 
 async function refresh() {
   await Promise.all([loadProducts(), renderHome()]);
