@@ -32,53 +32,13 @@ app.use(session({
   cookie: { httpOnly: true, sameSite: 'lax', secure: isProduction, maxAge: 8 * 60 * 60 * 1000 }
 }));
 
-function validateProduct(body) {
-  return typeof body.code === 'string' && body.code.trim().length > 0 && body.code.length <= 30 &&
-    typeof body.name === 'string' && body.name.trim().length > 0 && body.name.length <= 120 &&
-    typeof body.category === 'string' && body.category.trim().length > 0 && body.category.length <= 60 &&
-    Number.isFinite(Number(body.price)) && Number(body.price) > 0 &&
-    Number.isInteger(Number(body.stock)) && Number(body.stock) >= 0;
-}
-
 app.get('/api/health', asyncRoute(async (req, res) => {
   await db.query('SELECT 1');
   res.json({ status: 'ok', database: 'connected' });
 }));
 
 app.use('/api/auth', require('./routes/auth'));
-
-app.get('/api/products', requireAuth, asyncRoute(async (req, res) => {
-  const [rows] = await db.execute('SELECT id, code, name, category, unit, price, stock, image FROM products WHERE active = TRUE ORDER BY name');
-  res.json({ products: rows });
-}));
-app.post('/api/products', requireRole('admin'), asyncRoute(async (req, res) => {
-  if (!validateProduct(req.body)) return res.status(400).json({ error: 'Completa correctamente los datos del producto.' });
-  const { code, name, category, unit = 'unidad', price, stock, image = null } = req.body;
-  try {
-    const [result] = await db.execute('INSERT INTO products (code, name, category, unit, price, stock, image) VALUES (?, ?, ?, ?, ?, ?, ?)', [code.trim(), name.trim(), category.trim(), String(unit).slice(0, 40), Number(price), Number(stock), image || null]);
-    res.status(201).json({ product: { id: result.insertId, ...req.body } });
-  } catch (error) {
-    if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Ya existe un producto con ese código.' });
-    throw error;
-  }
-}));
-app.put('/api/products/:id', requireRole('admin'), asyncRoute(async (req, res) => {
-  if (!validateProduct(req.body)) return res.status(400).json({ error: 'Completa correctamente los datos del producto.' });
-  const { code, name, category, unit = 'unidad', price, stock, image = null } = req.body;
-  try {
-    const [result] = await db.execute('UPDATE products SET code=?, name=?, category=?, unit=?, price=?, stock=?, image=? WHERE id=? AND active=TRUE', [code.trim(), name.trim(), category.trim(), String(unit).slice(0, 40), Number(price), Number(stock), image || null, req.params.id]);
-    if (!result.affectedRows) return res.status(404).json({ error: 'No se encontró el producto.' });
-    res.json({ ok: true });
-  } catch (error) {
-    if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Ya existe un producto con ese código.' });
-    throw error;
-  }
-}));
-app.delete('/api/products/:id', requireRole('admin'), asyncRoute(async (req, res) => {
-  const [result] = await db.execute('UPDATE products SET active=FALSE WHERE id=? AND active=TRUE', [req.params.id]);
-  if (!result.affectedRows) return res.status(404).json({ error: 'No se encontró el producto.' });
-  res.status(204).end();
-}));
+app.use('/api/products', require('./routes/products'));
 
 app.get('/api/admin/summary', requireRole('admin'), asyncRoute(async (req, res) => {
   const [[summary]] = await db.query(`SELECT
