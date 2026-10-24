@@ -24,13 +24,14 @@ async function api(url, options = {}) {
 }
 
 //  Navegación 
-const TITLES = { inicio: 'Resumen', productos: 'Productos e inventario', ventas: 'Ventas', reportes: 'Reportes', usuarios: 'Usuarios' };
+const TITLES = { inicio: 'Resumen', productos: 'Productos e inventario', ventas: 'Ventas', pedidos: 'Pedidos', reportes: 'Reportes', usuarios: 'Usuarios' };
 
 function navigate(view) {
   document.querySelectorAll('.view').forEach(el => el.classList.toggle('hidden', el.id !== `view-${view}`));
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === view));
   $('pageTitle').textContent = TITLES[view];
   if (view === 'ventas') renderSales();
+    if (view === 'pedidos') renderOrders();
   if (view === 'reportes') loadReport();
   if (view === 'usuarios') renderUsers();
 }
@@ -199,7 +200,44 @@ document.querySelectorAll('.range-btn').forEach(b => b.addEventListener('click',
   loadReport();
 }));
 $('btnExcel').addEventListener('click', descargarExcel);
-//  Inicio 
+//  Inicio
+//  Pedidos 
+const ORDER_STATES = { pendiente: 'Pendiente', armado: 'Armado', completado: 'Completado', cancelado: 'Cancelado' };
+
+async function renderOrders() {
+  try {
+    const status = $('orderStatus').value;
+    const { orders } = await api('/api/orders' + (status ? `?status=${encodeURIComponent(status)}` : ''));
+    $('orderCount').textContent = `${orders.length} pedidos`;
+    $('orderRows').innerHTML = orders.length
+      ? orders.map(o => {
+          const fecha = new Date(o.createdAt).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' });
+          const items = o.items.map(i => `<li>${Number(i.quantity)} × ${safe(i.name)} <small>(${safe(i.unit)})</small> — ${money(Number(i.price) * Number(i.quantity))}</li>`).join('');
+          return `<tr>
+              <td><b>${safe(o.code)}</b></td>
+              <td>${safe(fecha)}</td>
+              <td>${safe(o.customer)}</td>
+              <td>${safe(o.delivery)}</td>
+              <td>${safe(o.payment)}</td>
+              <td><span class="order-status st-${safe(o.status)}">${safe(ORDER_STATES[o.status] || o.status)}</span></td>
+              <td><b>${money(o.total)}</b></td>
+              <td><button class="action" data-detail="${o.id}">Detalle</button></td>
+            </tr>
+            <tr class="order-detail" id="detail-${o.id}">
+              <td colspan="8">
+                <ul>${items}</ul>
+                ${o.address ? `<p><b>Dirección:</b> ${safe(o.address)}</p>` : ''}
+              </td>
+            </tr>`;
+        }).join('')
+      : '<tr><td class="empty" colspan="8">No hay pedidos para mostrar.</td></tr>';
+    document.querySelectorAll('[data-detail]').forEach(b => b.addEventListener('click', () => {
+      $(`detail-${b.dataset.detail}`).classList.toggle('open');
+    }));
+  } catch (error) { alert(error.message); }
+}
+$('orderStatus').addEventListener('change', renderOrders);
+$('refreshOrders').addEventListener('click', renderOrders); 
 async function refresh() {
   await Promise.all([loadProducts(), renderHome()]);
   renderProducts();

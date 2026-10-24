@@ -18,6 +18,7 @@
     <nav aria-label="Navegación principal">
       <button class="nav-item active" data-view="inicio">▦ <span>Resumen</span></button>
       <button class="nav-item" data-view="productos">▤ <span>Productos e inventario</span></button>
+      <button class="nav-item" data-view="pedidos">▨ <span>Pedidos</span></button>
       <button class="nav-item" data-view="ventas">▧ <span>Ventas</span></button>
       <button class="nav-item" data-view="reportes">▥ <span>Reportes</span></button>
       <button class="nav-item" data-view="usuarios">♙ <span>Usuarios</span></button>
@@ -119,6 +120,44 @@
               </tr>
             </thead>
             <tbody id="salesRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    <section class="view hidden" id="view-pedidos">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Pedidos de clientes</h3>
+            <p>Pedidos anticipados enviados desde la tienda en línea.</p>
+          </div>
+          <button id="refreshOrders" class="primary">↻ Actualizar</button>
+        </div>
+        <div class="toolbar">
+          <select id="orderStatus" aria-label="Filtrar por estado">
+            <option value="">Todos los estados</option>
+            <option value="pendiente">Pendientes</option>
+            <option value="armado">Armados</option>
+            <option value="completado">Completados</option>
+            <option value="cancelado">Cancelados</option>
+          </select>
+          <span id="orderCount" class="note"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Fecha</th>
+                <th>Cliente</th>
+                <th>Entrega</th>
+                <th>Pago</th>
+                <th>Estado</th>
+                <th>Total</th>
+                <th>Detalle</th>
+              </tr>
+            </thead>
+            <tbody id="orderRows"></tbody>
           </table>
         </div>
       </div>
