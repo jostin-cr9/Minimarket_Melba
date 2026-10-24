@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS orders (
   payment_method VARCHAR(30) NOT NULL,
   total DECIMAL(12,2) NOT NULL,
   status ENUM('pendiente','armado','completado','cancelado') NOT NULL DEFAULT 'pendiente',
+  stock_reserved BOOLEAN NOT NULL DEFAULT FALSE,
   seller_id BIGINT UNSIGNED NULL,
   sale_id BIGINT UNSIGNED NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

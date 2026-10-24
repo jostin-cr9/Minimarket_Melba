@@ -15,6 +15,12 @@ async function main() {
   try {
     const sql = await fs.readFile(path.join(__dirname, '..', 'schema.sql'), 'utf8');
     await connection.query(sql);
+    // Añade esta columna también en instalaciones que ya tenían creada la tabla orders.
+    const [columns] = await connection.execute(
+      "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'orders' AND COLUMN_NAME = 'stock_reserved'",
+      [process.env.DB_NAME || 'minimelba']
+    );
+    if (!columns.length) await connection.query('ALTER TABLE orders ADD COLUMN stock_reserved BOOLEAN NOT NULL DEFAULT FALSE AFTER status');
     console.log('Base de datos y tablas creadas. Productos iniciales listos.');
   } finally { await connection.end(); }
 }

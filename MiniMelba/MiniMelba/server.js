@@ -8,8 +8,16 @@ const helmet = require('helmet');
 const { rateLimit } = require('express-rate-limit');
 const db = require('./db');
 
-const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
+if (isProduction) {
+  const required = ['SESSION_SECRET', 'DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+  const missing = required.filter(name => !process.env[name]?.trim());
+  if (missing.length) throw new Error(`Faltan variables obligatorias de producción: ${missing.join(', ')}`);
+  if (process.env.SESSION_SECRET.trim().length < 32) throw new Error('SESSION_SECRET debe tener al menos 32 caracteres en producción.');
+  const dbPort = Number(process.env.DB_PORT || 3306);
+  if (!Number.isInteger(dbPort) || dbPort < 1 || dbPort > 65535) throw new Error('DB_PORT debe ser un puerto válido en producción.');
+}
+const app = express();
 const sessionStore = new MySQLStore({
   host: process.env.DB_HOST || '127.0.0.1',
   port: Number(process.env.DB_PORT || 3306),
@@ -163,7 +171,7 @@ app.post('/api/sales', requireRole('vendedor'), asyncRoute(async (req, res) => {
     await conn.beginTransaction();
     let total = 0;
     const details = [];
-    for (const [productId, quantity] of normalized) {
+    for (const [productId, quantity] of [...normalized].sort((a, b) => a[0] - b[0])) {
       const [rows] = await conn.execute('SELECT id, name, price, stock FROM products WHERE id=? AND active=TRUE FOR UPDATE', [productId]);
       const product = rows[0];
       if (!product || product.stock < quantity) throw Object.assign(new Error(`Stock insuficiente para ${product?.name || 'un producto'}.`), { status: 409 });
@@ -230,8 +238,8 @@ app.post('/api/orders', requireRole('comprador'), asyncRoute(async (req, res) =>
     await conn.beginTransaction();
     let total = 0;
     const details = [];
-    for (const [productId, quantity] of normalized) {
-      const [rows] = await conn.execute('SELECT id, name, unit, price, stock FROM products WHERE id=? AND active=TRUE', [productId]);
+    for (const [productId, quantity] of [...normalized].sort((a, b) => a[0] - b[0])) {
+      const [rows] = await conn.execute('SELECT id, name, unit, price, stock FROM products WHERE id=? AND active=TRUE FOR UPDATE', [productId]);
       const product = rows[0];
       if (!product) throw Object.assign(new Error('Un producto del pedido ya no está disponible.'), { status: 409 });
       if (product.stock < quantity) throw Object.assign(new Error(`Stock insuficiente para ${product.name}. Quedan ${product.stock}.`), { status: 409 });
@@ -239,12 +247,13 @@ app.post('/api/orders', requireRole('comprador'), asyncRoute(async (req, res) =>
       details.push({ ...product, quantity });
     }
     const [order] = await conn.execute(
-      'INSERT INTO orders (order_code, buyer_id, customer_name, delivery_type, address, payment_method, total) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO orders (order_code, buyer_id, customer_name, delivery_type, address, payment_method, total, stock_reserved) VALUES (?, ?, ?, ?, ?, ?, ?, TRUE)',
       [require('node:crypto').randomUUID(), req.session.user.id, req.session.user.name, delivery, delivery === 'Delivery' ? address.trim() : null, paymentMethod, total.toFixed(2)]
     );
     await conn.execute("UPDATE orders SET order_code = CONCAT('PED-', LPAD(id, 4, '0')) WHERE id = ?", [order.insertId]);
     for (const item of details) {
       await conn.execute('INSERT INTO order_items (order_id, product_id, product_name, unit, quantity, unit_price) VALUES (?, ?, ?, ?, ?, ?)', [order.insertId, item.id, item.name, item.unit, item.quantity, item.price]);
+      await conn.execute('UPDATE products SET stock = stock - ? WHERE id = ?', [item.quantity, item.id]);
     }
     await conn.commit();
     res.status(201).json({ order: { id: order.insertId, code: `PED-${String(order.insertId).padStart(4, '0')}`, total: Number(total.toFixed(2)), status: 'pendiente' } });
@@ -281,7 +290,7 @@ app.patch('/api/orders/:id/status', requireRole('vendedor', 'admin'), asyncRoute
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.execute('SELECT id, order_code, customer_name, payment_method, total, status FROM orders WHERE id=? FOR UPDATE', [orderId]);
+    const [rows] = await conn.execute('SELECT id, order_code, customer_name, payment_method, total, status, stock_reserved FROM orders WHERE id=? FOR UPDATE', [orderId]);
     const order = rows[0];
     if (!order) throw Object.assign(new Error('No se encontró el pedido.'), { status: 404 });
     if (!ORDER_TRANSITIONS[order.status].includes(status)) throw Object.assign(new Error(`Un pedido ${order.status} no puede pasar a ${status}.`), { status: 409 });
@@ -289,9 +298,11 @@ app.patch('/api/orders/:id/status', requireRole('vendedor', 'admin'), asyncRoute
     let saleId = null;
     if (status === 'completado') {
       const [items] = await conn.execute('SELECT product_id, product_name, quantity, unit_price FROM order_items WHERE order_id=?', [orderId]);
-      for (const item of items) {
-        const [prod] = await conn.execute('SELECT stock FROM products WHERE id=? FOR UPDATE', [item.product_id]);
-        if (!prod[0] || prod[0].stock < item.quantity) throw Object.assign(new Error(`Stock insuficiente para ${item.product_name}.`), { status: 409 });
+      if (!order.stock_reserved) {
+        for (const item of items) {
+          const [prod] = await conn.execute('SELECT stock FROM products WHERE id=? FOR UPDATE', [item.product_id]);
+          if (!prod[0] || prod[0].stock < item.quantity) throw Object.assign(new Error(`Stock insuficiente para ${item.product_name}.`), { status: 409 });
+        }
       }
       const [sale] = await conn.execute(
         'INSERT INTO sales (transaction_code, seller_id, customer_name, payment_method, total) VALUES (?, ?, ?, ?, ?)',
@@ -299,10 +310,15 @@ app.patch('/api/orders/:id/status', requireRole('vendedor', 'admin'), asyncRoute
       saleId = sale.insertId;
       for (const item of items) {
         await conn.execute('INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price) VALUES (?, ?, ?, ?, ?)', [saleId, item.product_id, item.product_name, item.quantity, item.unit_price]);
-        await conn.execute('UPDATE products SET stock = stock - ? WHERE id = ?', [item.quantity, item.product_id]);
+        if (!order.stock_reserved) await conn.execute('UPDATE products SET stock = stock - ? WHERE id = ?', [item.quantity, item.product_id]);
       }
     }
-    await conn.execute('UPDATE orders SET status=?, seller_id=?, sale_id=COALESCE(?, sale_id) WHERE id=?', [status, req.session.user.id, saleId, orderId]);
+    if (status === 'cancelado' && order.stock_reserved) {
+      const [items] = await conn.execute('SELECT product_id, quantity FROM order_items WHERE order_id=?', [orderId]);
+      for (const item of items) await conn.execute('UPDATE products SET stock = stock + ? WHERE id = ?', [item.quantity, item.product_id]);
+    }
+    const terminal = status === 'completado' || status === 'cancelado';
+    await conn.execute('UPDATE orders SET status=?, seller_id=?, sale_id=COALESCE(?, sale_id), stock_reserved=IF(?, FALSE, stock_reserved) WHERE id=?', [status, req.session.user.id, saleId, terminal, orderId]);
     await conn.commit();
     res.json({ ok: true, status });
   } catch (error) {

@@ -1,6 +1,6 @@
 
 // La sesión se valida antes de cargar esta página.
-const usuarioActual = currentUser();
+let usuarioActual;
 
 // ---- Catálogo: viene de la base de datos (API) ----
 const ETIQUETAS = { '7750001': 'Popular', '7750005': 'Popular', '7750007': 'Nuevo' };
@@ -38,6 +38,8 @@ const porId = id => productos.find(p => p.id === id);
 
 // INICIALIZACIÓN
 document.addEventListener('DOMContentLoaded', async () => {
+    usuarioActual = await currentUser();
+    if (!usuarioActual) return;
     iniciarUsuario();
     iniciarSwiper();
     iniciarCategoriasPortada();

@@ -2,7 +2,7 @@ const STOCK_BAJO = 5;
 const IGV = 0.18;
 
 // La sesión se valida antes de cargar esta página.
-const usuarioActual = currentUser();
+let usuarioActual;
 
 // ---- Productos: vienen de la base de datos (API) ----
 let productos = [];
@@ -68,7 +68,11 @@ async function refrescarProductos() {
 // =====================================
 // ENCABEZADO / IDENTIFICACIÓN
 // =====================================
-$('userCod').textContent = `${usuarioActual.username} · Vendedor`;
+currentUser().then(user => {
+  if (!user) return;
+  usuarioActual = user;
+  $('userCod').textContent = `${usuarioActual.username} · Vendedor`;
+});
 
 function nuevoCodigoTx() {
   return `TX-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase()}`;
