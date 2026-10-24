@@ -21,10 +21,25 @@ async function update(id, { code, name, category, unit, price, stock, image }) {
   return result.affectedRows;
 }
 
-// Eliminación lógica: el producto se desactiva, no se borra (así no se rompen las ventas antiguas)
+// Eliminación lógica: el producto se desactiva, no se borra ( no se rompen las ventas antiguas)
 async function deactivate(id) {
   const [result] = await db.execute('UPDATE products SET active=FALSE WHERE id=? AND active=TRUE', [id]);
   return result.affectedRows;
 }
 
-module.exports = { findAllActive, create, update, deactivate };
+// Usadas dentro de transacciones (pedidos y ventas)
+async function findActiveForOrder(conn, id) {
+  const [rows] = await conn.execute('SELECT id, name, unit, price, stock FROM products WHERE id=? AND active=TRUE', [id]);
+  return rows[0];
+}
+
+async function lockStock(conn, id) {
+  const [rows] = await conn.execute('SELECT stock FROM products WHERE id=? FOR UPDATE', [id]);
+  return rows[0];
+}
+
+async function decreaseStock(conn, id, quantity) {
+  await conn.execute('UPDATE products SET stock = stock - ? WHERE id = ?', [quantity, id]);
+}
+
+module.exports = { findAllActive, create, update, deactivate, findActiveForOrder, lockStock, decreaseStock };
