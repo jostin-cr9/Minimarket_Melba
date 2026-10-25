@@ -1,4 +1,5 @@
 const STOCK_BAJO = 5;
+const IGV = 0.18;
 
 // La sesión se valida antes de cargar esta página.
 const usuarioActual = currentUser();
@@ -202,9 +203,12 @@ function render() {
     tb.appendChild(tr);
   });
 
-    // Resumen
+  // Resumen (el precio ya incluye IGV)
   const total = totalVenta();
+  const base = total / (1 + IGV);
   $('lineas').textContent = 'Líneas: ' + ids.length;
+  $('subtotal').textContent = soles(base);
+  $('igv').textContent = soles(total - base);
   $('total').textContent = soles(total);
 
   calcularVuelto();
