@@ -2,14 +2,12 @@ const STOCK_BAJO = 5;
 const IGV = 0.18;
 
 // La sesión se valida antes de cargar esta página.
-let usuarioActual;
+const usuarioActual = currentUser();
 
 // ---- Productos: vienen de la base de datos (API) ----
 let productos = [];
 
 let venta = {};              // { idProducto: cantidad }
-let pedidoSeleccionado = null;
-let pedidosDisponibles = new Map();
 let codigoTx = '';
 let accionPendiente = null;
 let ocupado = false;
@@ -29,144 +27,14 @@ function msg(texto, ok = false) {
   $('msg').classList.toggle('ok', ok);
 }
 
-function setModoPedido(activo) {
-  ['buscar', 'cantidad', 'btnAgregar', 'pago'].forEach(id => {
-    $(id).disabled = activo;
-  });
-
-  $('cliente').readOnly = activo;
-  $('btnCompletar').textContent = activo
-    ? 'Completar pedido'
-    : 'Completar Venta (F10)';
-  $('btnCancelar').textContent = activo
-    ? 'Quitar pedido de la caja'
-    : 'Cancelar Transacción';
-}
-
-function seleccionarPedido(id) {
-  pedidoSeleccionado = id
-    ? pedidosDisponibles.get(String(id)) || null
-    : null;
-
-  venta = {};
-
-  const pedido = pedidoSeleccionado;
-  setModoPedido(Boolean(pedido));
-
-  if (pedido) {
-    $('cliente').value = pedido.customer;
-    $('pago').value = pedido.payment === 'Yape/Plin'
-      ? 'Yape / Plin'
-      : pedido.payment;
-
-    $('pedidoDetalle').textContent =
-      `${pedido.code} · ${pedido.delivery}` +
-      `${pedido.address ? ` · ${pedido.address}` : ''} · ${pedido.status}`;
-
-    $('recibido').value = pedido.payment === 'Efectivo'
-      ? Number(pedido.total).toFixed(2)
-      : '';
-  } else {
-    $('cliente').value = 'Cliente Genérico (Público General)';
-    $('pago').value = 'Efectivo';
-    $('pedidoDetalle').textContent = pedidosDisponibles.size
-      ? ''
-      : 'No hay pedidos web pendientes o armados. Puedes registrar una venta presencial.';
-    $('recibido').value = '';
-  }
-
-  $('boxEfectivo').classList.toggle(
-    'oculto',
-    $('pago').value !== 'Efectivo'
-  );
-
-  renderProductos();
-  render();
-}
-
-async function cargarPedidosPendientes() {
-  try {
-    const [pendingResponse, assembledResponse] = await Promise.all([
-      fetch('/api/orders?status=pendiente'),
-      fetch('/api/orders?status=armado')
-    ]);
-
-    if (pendingResponse.status === 401 || assembledResponse.status === 401) {
-      location.replace('index.html');
-      return;
-    }
-
-    if (!pendingResponse.ok || !assembledResponse.ok) {
-      throw new Error('No se pudieron cargar los pedidos web.');
-    }
-
-    const [pendingData, assembledData] = await Promise.all([
-      pendingResponse.json(),
-      assembledResponse.json()
-    ]);
-
-    const orders = [...pendingData.orders, ...assembledData.orders]
-      .sort((a, b) => a.id - b.id);
-
-    const selectedId = pedidoSeleccionado
-      ? String(pedidoSeleccionado.id)
-      : '';
-
-    pedidosDisponibles = new Map(
-      orders.map(order => [String(order.id), order])
-    );
-
-    const selector = $('pedidoCliente');
-    selector.innerHTML = '';
-
-    const directOption = document.createElement('option');
-    directOption.value = '';
-    directOption.textContent = 'Venta presencial (sin pedido)';
-    selector.appendChild(directOption);
-
-    orders.forEach(order => {
-      const option = document.createElement('option');
-      option.value = String(order.id);
-      option.textContent =
-        `${order.code} · ${order.customer} · ` +
-        `${soles(Number(order.total))} · ${order.status}`;
-      selector.appendChild(option);
-    });
-
-    if (selectedId && pedidosDisponibles.has(selectedId)) {
-      pedidoSeleccionado = pedidosDisponibles.get(selectedId);
-      selector.value = selectedId;
-    } else if (selectedId) {
-      seleccionarPedido('');
-      msg('El pedido dejó de estar pendiente; vuelve al panel para actualizar la lista.');
-    } else {
-      selector.value = '';
-
-      if (Object.keys(venta).length === 0) {
-        $('pedidoDetalle').textContent = orders.length
-          ? ''
-          : 'No hay pedidos web pendientes o armados. Puedes registrar una venta presencial.';
-      }
-    }
-  } catch (error) {
-    $('pedidoDetalle').textContent = error.message;
-  }
-}
-
 async function cargarProductos() {
   const res = await fetch('/api/products');
-
   if (res.status === 401) {
     location.replace('index.html');
     throw new Error('Tu sesión expiró. Inicia sesión de nuevo.');
   }
-
-  if (!res.ok) {
-    throw new Error('No se pudo cargar el catálogo.');
-  }
-
+  if (!res.ok) throw new Error('No se pudo cargar el catálogo.');
   const data = await res.json();
-
   productos = data.products.map(p => ({
     id: p.id,
     codigo: String(p.code),
@@ -177,18 +45,12 @@ async function cargarProductos() {
   }));
 }
 
-// Si el stock cambió, la venta en curso se ajusta a lo disponible.
+// Si el stock cambió, la venta en curso se ajusta a lo disponible
 function ajustarVenta() {
-  if (pedidoSeleccionado) return; // El inventario del pedido ya está reservado.
-
   Object.keys(venta).forEach(id => {
     const p = porId(+id);
-
-    if (!p || p.stock <= 0) {
-      delete venta[id];
-    } else if (venta[id] > p.stock) {
-      venta[id] = p.stock;
-    }
+    if (!p || p.stock <= 0) delete venta[id];
+    else if (venta[id] > p.stock) venta[id] = p.stock;
   });
 }
 
@@ -199,7 +61,6 @@ async function refrescarProductos() {
   } catch (error) {
     msg(error.message);
   }
-
   renderProductos();
   render();
 }
@@ -207,30 +68,18 @@ async function refrescarProductos() {
 // =====================================
 // ENCABEZADO / IDENTIFICACIÓN
 // =====================================
-currentUser().then(user => {
-  if (!user) return;
-
-  usuarioActual = user;
-  $('userCod').textContent = `${usuarioActual.username} · Vendedor`;
-});
+$('userCod').textContent = `${usuarioActual.username} · Vendedor`;
 
 function nuevoCodigoTx() {
   return `TX-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase()}`;
 }
-
 function actualizarTx() {
   $('nroTx').textContent = codigoTx;
 }
-
 function actualizarFecha() {
-  const hora = new Date().toLocaleTimeString('es-PE', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-
+  const hora = new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
   $('fechaHora').textContent = 'Hoy, ' + hora;
 }
-
 codigoTx = nuevoCodigoTx();
 actualizarTx();
 actualizarFecha();
@@ -241,7 +90,6 @@ setInterval(actualizarFecha, 30000);
 // =====================================
 function filtrados(texto) {
   const q = texto.trim().toLowerCase();
-
   return productos.filter(p =>
     p.nombre.toLowerCase().includes(q) ||
     p.categoria.toLowerCase().includes(q) ||
@@ -255,32 +103,20 @@ function renderProductos() {
   tb.innerHTML = '';
 
   if (lista.length === 0) {
-    tb.innerHTML =
-      '<tr><td colspan="5" class="vacio">No se encontraron productos</td></tr>';
+    tb.innerHTML = '<tr><td colspan="5" class="vacio">No se encontraron productos</td></tr>';
     return;
   }
 
   lista.forEach(p => {
     const bajo = p.stock <= STOCK_BAJO;
     const tr = document.createElement('tr');
-
     if (bajo) tr.className = 'bajo';
-
     tr.innerHTML = `
       <td>${esc(p.nombre)}</td>
       <td>${esc(p.categoria)}</td>
       <td class="r">${soles(p.precio)}</td>
-      <td class="c ${bajo ? 'stock-bajo' : ''}">
-        ${p.stock}${bajo ? ' ⚠' : ''}
-      </td>
-      <td class="c">
-        <button
-          type="button"
-          class="btn-add"
-          ${p.stock === 0 || pedidoSeleccionado ? 'disabled' : ''}
-        >Agregar</button>
-      </td>`;
-
+      <td class="c ${bajo ? 'stock-bajo' : ''}">${p.stock}${bajo ? ' ⚠' : ''}</td>
+      <td class="c"><button type="button" class="btn-add" ${p.stock === 0 ? 'disabled' : ''}>Agregar</button></td>`;
     tr.querySelector('.btn-add').addEventListener('click', () => agregar(p));
     tb.appendChild(tr);
   });
@@ -289,10 +125,7 @@ function renderProductos() {
 function agregar(p) {
   const cant = Math.max(parseInt($('cantidad').value) || 1, 1);
   const actual = venta[p.id] || 0;
-
-  if (actual + cant > p.stock) {
-    return msg(`Stock insuficiente de ${p.nombre} (disponible: ${p.stock}).`);
-  }
+  if (actual + cant > p.stock) return msg(`Stock insuficiente de ${p.nombre} (disponible: ${p.stock}).`);
 
   venta[p.id] = actual + cant;
   $('cantidad').value = 1;
@@ -300,16 +133,14 @@ function agregar(p) {
   render();
 }
 
-// Botón "Agregar" y tecla Enter (lector de barras).
+// Botón rojo "Agregar" y tecla Enter (lector de barras)
 function agregarDesdeBusqueda() {
   const texto = $('buscar').value.trim();
   const exacto = productos.find(p => p.codigo === texto);
   const lista = filtrados(texto);
   const p = exacto || (lista.length === 1 ? lista[0] : null);
 
-  if (!p) {
-    return msg('Seleccione un producto de la tabla o escriba un nombre/código exacto.');
-  }
+  if (!p) return msg('Seleccione un producto de la tabla o escriba un nombre/código exacto.');
 
   agregar(p);
   $('buscar').value = '';
@@ -318,18 +149,8 @@ function agregarDesdeBusqueda() {
 }
 
 $('buscar').addEventListener('input', renderProductos);
-$('buscar').addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    agregarDesdeBusqueda();
-  }
-});
-$('cantidad').addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    agregarDesdeBusqueda();
-  }
-});
+$('buscar').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); agregarDesdeBusqueda(); } });
+$('cantidad').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); agregarDesdeBusqueda(); } });
 $('btnAgregar').addEventListener('click', agregarDesdeBusqueda);
 
 // =====================================
@@ -338,105 +159,54 @@ $('btnAgregar').addEventListener('click', agregarDesdeBusqueda);
 function cambiarCantidad(id, delta) {
   const p = porId(id);
   const nueva = (venta[id] || 0) + delta;
-
-  if (nueva <= 0) {
-    delete venta[id];
-  } else if (nueva > p.stock) {
-    return msg(`Stock insuficiente de ${p.nombre} (disponible: ${p.stock}).`);
-  } else {
-    venta[id] = nueva;
-  }
-
+  if (nueva <= 0) delete venta[id];
+  else if (nueva > p.stock) return msg(`Stock insuficiente de ${p.nombre} (disponible: ${p.stock}).`);
+  else venta[id] = nueva;
   msg('');
   render();
 }
 
 function totalVenta() {
-  if (pedidoSeleccionado) {
-    return Number(pedidoSeleccionado.total);
-  }
-
-  return Object.entries(venta)
-    .reduce((s, [id, c]) => s + porId(+id).precio * c, 0);
+  return Object.entries(venta).reduce((s, [id, c]) => s + porId(+id).precio * c, 0);
 }
 
 function render() {
   const ids = Object.keys(venta);
-
-  const lineas = pedidoSeleccionado
-    ? pedidoSeleccionado.items.map(item => ({
-        id: Number(item.productId),
-        nombre: `${item.name}${item.unit ? ` ${item.unit}` : ''}`,
-        cantidad: Number(item.quantity),
-        precio: Number(item.price)
-      }))
-    : ids.map(id => {
-        const p = porId(+id);
-        return {
-          id: +id,
-          nombre: p.nombre,
-          cantidad: venta[id],
-          precio: p.precio
-        };
-      });
-
   const tb = $('tbVenta');
   tb.innerHTML = '';
 
-  if (lineas.length === 0) {
-    tb.innerHTML =
-      '<tr><td colspan="5" class="vacio">Aún no hay productos en la venta</td></tr>';
+  if (ids.length === 0) {
+    tb.innerHTML = '<tr><td colspan="5" class="vacio">Aún no hay productos en la venta</td></tr>';
   }
 
-  lineas.forEach(linea => {
+  ids.forEach(id => {
+    const p = porId(+id);
     const tr = document.createElement('tr');
-
-    if (pedidoSeleccionado) {
-      tr.innerHTML = `
-        <td>${esc(linea.nombre)}</td>
-        <td class="c">${linea.cantidad}</td>
-        <td class="r">${soles(linea.precio)}</td>
-        <td class="r sub">${soles(linea.precio * linea.cantidad)}</td>
-        <td class="c"></td>`;
-    } else {
-      tr.innerHTML = `
-        <td>${esc(linea.nombre)}</td>
-        <td class="c">
-          <span class="qty">
-            <button type="button" data-d="-1">−</button>
-            ${linea.cantidad}
-            <button type="button" data-d="1">+</button>
-          </span>
-        </td>
-        <td class="r">${soles(linea.precio)}</td>
-        <td class="r sub">${soles(linea.precio * linea.cantidad)}</td>
-        <td class="c">
-          <button type="button" class="btn-del" aria-label="Quitar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>
-            </svg>
-          </button>
-        </td>`;
-
-      tr.querySelectorAll('.qty button').forEach(b =>
-        b.addEventListener('click', () => cambiarCantidad(linea.id, +b.dataset.d))
-      );
-
-      tr.querySelector('.btn-del').addEventListener('click', () => {
-        delete venta[linea.id];
-        render();
-      });
-    }
-
+    tr.innerHTML = `
+      <td>${esc(p.nombre)}</td>
+      <td class="c"><span class="qty">
+        <button type="button" data-d="-1">−</button>${venta[id]}<button type="button" data-d="1">+</button>
+      </span></td>
+      <td class="r">${soles(p.precio)}</td>
+      <td class="r sub">${soles(p.precio * venta[id])}</td>
+      <td class="c">
+        <button type="button" class="btn-del" aria-label="Quitar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+        </button>
+      </td>`;
+    tr.querySelectorAll('.qty button').forEach(b =>
+      b.addEventListener('click', () => cambiarCantidad(+id, +b.dataset.d)));
+    tr.querySelector('.btn-del').addEventListener('click', () => {
+      delete venta[id];
+      render();
+    });
     tb.appendChild(tr);
   });
 
-  // El precio mostrado ya incluye IGV.
+  // Resumen (el precio ya incluye IGV)
   const total = totalVenta();
   const base = total / (1 + IGV);
-
-  $('lineas').textContent = 'Líneas: ' + lineas.length;
+  $('lineas').textContent = 'Líneas: ' + ids.length;
   $('subtotal').textContent = soles(base);
   $('igv').textContent = soles(total - base);
   $('total').textContent = soles(total);
@@ -447,11 +217,8 @@ function render() {
 
 function renderAlertaStock() {
   const bajos = productos.filter(p => p.stock <= STOCK_BAJO);
-
   $('alertaStock').classList.toggle('oculto', bajos.length === 0);
-  $('alertaStock').innerHTML =
-    '⚠ <b>Stock bajo:</b> ' +
-    bajos.map(p => `${esc(p.nombre)} (${p.stock})`).join(', ');
+  $('alertaStock').innerHTML = '⚠ <b>Stock bajo:</b> ' + bajos.map(p => `${esc(p.nombre)} (${p.stock})`).join(', ');
 }
 
 // =====================================
@@ -461,50 +228,39 @@ function calcularVuelto() {
   const v = (parseFloat($('recibido').value) || 0) - totalVenta();
   $('vuelto').textContent = soles(Math.max(v, 0));
 }
-
 $('pago').addEventListener('change', () => {
   $('boxEfectivo').classList.toggle('oculto', $('pago').value !== 'Efectivo');
 });
 $('recibido').addEventListener('input', calcularVuelto);
-$('pedidoCliente').addEventListener('change', () => {
-  seleccionarPedido($('pedidoCliente').value);
-});
 
 // =====================================
-// MODAL SÍ / NO
+// MODAL Sí / No
 // =====================================
 function pedirConfirmacion(texto, alAceptar) {
   $('modalTexto').textContent = texto;
   accionPendiente = alAceptar;
   $('modal').classList.remove('oculto');
 }
-
 $('modalSi').addEventListener('click', () => {
   $('modal').classList.add('oculto');
-
   if (accionPendiente) accionPendiente();
   accionPendiente = null;
 });
-
 $('modalNo').addEventListener('click', () => {
   $('modal').classList.add('oculto');
   accionPendiente = null;
 });
 
-// =====================================
 // AVISO: VENTA REGISTRADA
-// =====================================
 function mostrarAviso(codigo) {
   $('avisoCodigo').textContent = codigo;
   $('avisoVenta').classList.remove('oculto');
   $('avisoOk').focus();
 }
-
 function cerrarAviso() {
   $('avisoVenta').classList.add('oculto');
   $('buscar').focus();
 }
-
 $('avisoOk').addEventListener('click', cerrarAviso);
 
 // =====================================
@@ -512,20 +268,10 @@ $('avisoOk').addEventListener('click', cerrarAviso);
 // =====================================
 function completarVenta() {
   if (ocupado) return;
-
   const total = totalVenta();
-
-  if (total === 0) {
-    return msg('Agregue productos a la venta.');
-  }
-
-  if (
-    !pedidoSeleccionado &&
-    $('pago').value === 'Efectivo' &&
-    (parseFloat($('recibido').value) || 0) < total
-  ) {
+  if (total === 0) return msg('Agregue productos a la venta.');
+  if ($('pago').value === 'Efectivo' && (parseFloat($('recibido').value) || 0) < total)
     return msg('El monto recibido es menor al total.');
-  }
 
   pedirConfirmacion(`¿Desea completar la venta por ${soles(total)}?`, registrarVenta);
 }
@@ -533,78 +279,30 @@ function completarVenta() {
 async function registrarVenta() {
   if (ocupado) return;
   ocupado = true;
+  const cuerpo = {
+    transactionCode: codigoTx,
+    customerName: $('cliente').value.trim() || 'Cliente Genérico (Público General)',
+    paymentMethod: $('pago').value === 'Yape / Plin' ? 'Yape/Plin' : $('pago').value,
+    items: Object.entries(venta).map(([id, c]) => ({ productId: +id, quantity: c }))
+  };
 
   try {
-    if (pedidoSeleccionado) {
-      const pedido = pedidoSeleccionado;
-
-      const res = await fetch(`/api/orders/${pedido.id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'completado' })
-      });
-
-      if (res.status === 401) {
-        location.replace('index.html');
-        return;
-      }
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(data.error || 'No se pudo completar el pedido.');
-      }
-
-      reiniciar();
-      await Promise.all([
-        refrescarProductos(),
-        cargarPedidosPendientes()
-      ]);
-      msg('');
-      mostrarAviso(pedido.code);
-      return;
-    }
-
-    const cuerpo = {
-      transactionCode: codigoTx,
-      customerName: $('cliente').value.trim() ||
-        'Cliente Genérico (Público General)',
-      paymentMethod: $('pago').value === 'Yape / Plin'
-        ? 'Yape/Plin'
-        : $('pago').value,
-      items: Object.entries(venta).map(([id, c]) => ({
-        productId: +id,
-        quantity: c
-      }))
-    };
-
     const res = await fetch('/api/sales', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(cuerpo)
     });
-
-    if (res.status === 401) {
-      location.replace('index.html');
-      return;
-    }
-
+    if (res.status === 401) { location.replace('index.html'); return; }
     const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      throw new Error(data.error || 'No se pudo registrar la venta.');
-    }
+    if (!res.ok) throw new Error(data.error || 'No se pudo registrar la venta.');
 
     reiniciar();
-    await refrescarProductos();
+    await refrescarProductos(); // trae los stocks reales de la BD
     msg('');
     mostrarAviso(cuerpo.transactionCode);
   } catch (error) {
-    if (!pedidoSeleccionado) {
-      codigoTx = nuevoCodigoTx();
-      actualizarTx();
-    }
-
+    // Conserva el mismo código: si el servidor guardó la venta pero se perdió
+    // la respuesta, un reintento debe usar el código original.
     await refrescarProductos();
     msg(error.message);
   } finally {
@@ -613,71 +311,30 @@ async function registrarVenta() {
 }
 
 function cancelarTransaccion() {
-  if (pedidoSeleccionado) {
-    pedirConfirmacion(
-      '¿Quitar el pedido de la caja? El pedido seguirá pendiente.',
-      () => {
-        reiniciar();
-        msg('Pedido retirado de la caja.');
-      }
-    );
-    return;
-  }
-
-  if (Object.keys(venta).length === 0) {
-    return msg('No hay una venta en curso.');
-  }
-
+  if (Object.keys(venta).length === 0) return msg('No hay una venta en curso.');
   pedirConfirmacion('¿Desea cancelar la transacción?', () => {
     reiniciar();
-    msg('Transacción cancelada.'); // No se guarda en la base de datos.
+    msg('Transacción cancelada.'); // no se guarda en la BD
   });
 }
 
 function reiniciar() {
   venta = {};
-  pedidoSeleccionado = null;
-  $('pedidoCliente').value = '';
-  $('pedidoDetalle').textContent = pedidosDisponibles.size
-    ? ''
-    : 'No hay pedidos web pendientes o armados. Puedes registrar una venta presencial.';
-
-  setModoPedido(false);
-
   codigoTx = nuevoCodigoTx();
   $('recibido').value = '';
   $('cliente').value = 'Cliente Genérico (Público General)';
-  $('pago').value = 'Efectivo';
-  $('boxEfectivo').classList.remove('oculto');
-
   actualizarTx();
-  renderProductos();
   render();
 }
 
 $('btnCompletar').addEventListener('click', completarVenta);
 $('btnCancelar').addEventListener('click', cancelarTransaccion);
-
 document.addEventListener('keydown', e => {
   const avisoAbierto = !$('avisoVenta').classList.contains('oculto');
-
-  if (e.key === 'F10') {
-    e.preventDefault();
-    if (!avisoAbierto) completarVenta();
-  }
-
-  if (e.key === 'Escape' && avisoAbierto) {
-    cerrarAviso();
-  }
+  if (e.key === 'F10') { e.preventDefault(); if (!avisoAbierto) completarVenta(); }
+  if (e.key === 'Escape' && avisoAbierto) cerrarAviso();
 });
 
-// ---- Inicio: carga catálogo y pedidos; refresca ambos cada 30 s ----
+// ---- Inicio: carga el catálogo y lo actualiza cada 30 s ----
 refrescarProductos();
-cargarPedidosPendientes();
-
-setInterval(() => {
-  if (!ocupado && !document.hidden) {
-    refrescarProductos();
-    cargarPedidosPendientes();
-  }
-}, 30000);
+setInterval(() => { if (!ocupado && !document.hidden) refrescarProductos(); }, 30000);

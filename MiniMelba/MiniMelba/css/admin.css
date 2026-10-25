@@ -471,3 +471,105 @@ dialog label input {
         display: none
     }
 }
+
+/* REPORTES */
+.range-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.range-btn {
+    border: 1px solid var(--line);
+    background: #fff;
+    color: #45534a;
+    border-radius: 30px;
+    padding: 8px 16px;
+    font: 600 13px 'Outfit', sans-serif;
+    cursor: pointer;
+    transition: all .2s;
+}
+
+.range-btn:hover,
+.range-btn.active {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+}
+
+#reportInfo {
+    margin: 12px 0 0;
+}
+
+.stats-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.scroll-y {
+    max-height: 340px;
+}
+
+@media (max-width: 700px) {
+    .stats-3 {
+        grid-template-columns: 1fr;
+    }
+}
+
+.toolbar select {
+    padding: 9px 12px;
+    border: 1px solid #d9e2dc;
+    border-radius: 8px;
+    background: #fff;
+    font: inherit;
+}
+
+.order-status {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 30px;
+    font-size: .75rem;
+    font-weight: 700;
+}
+
+.order-status.st-pendiente {
+    background: #fff4e5;
+    color: #b26a00;
+}
+
+.order-status.st-armado {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.order-status.st-completado {
+    background: #e6f4ea;
+    color: #1b5e20;
+}
+
+.order-status.st-cancelado {
+    background: #fdecea;
+    color: #c0392b;
+}
+
+.order-detail {
+    display: none;
+    background: #f7faf8;
+}
+
+.order-detail.open {
+    display: table-row;
+}
+
+.order-detail ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 6px;
+}
+
+.order-detail li {
+    padding: 3px 0;
+}
+
+.order-detail p {
+    margin: 4px 0;
+}
