@@ -7,8 +7,16 @@ const db = require('./db');
 const logger = require('./logger');
 const { asyncRoute } = require('./middleware/auth');
 
-const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
+if (isProduction) {
+  const required = ['SESSION_SECRET', 'DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+  const missing = required.filter(name => !process.env[name]?.trim());
+  if (missing.length) throw new Error(`Faltan variables obligatorias de producción: ${missing.join(', ')}`);
+  if (process.env.SESSION_SECRET.trim().length < 32) throw new Error('SESSION_SECRET debe tener al menos 32 caracteres en producción.');
+  const dbPort = Number(process.env.DB_PORT || 3306);
+  if (!Number.isInteger(dbPort) || dbPort < 1 || dbPort > 65535) throw new Error('DB_PORT debe ser un puerto válido en producción.');
+}
+const app = express();
 const sessionStore = new MySQLStore({
   host: process.env.DB_HOST || '127.0.0.1',
   port: Number(process.env.DB_PORT || 3306),

@@ -1,4 +1,4 @@
-const user = currentUser();
+let user;
 let products = [];
 let summary = { productCount: 0, stockUnits: 0, saleCount: 0, lowStockCount: 0 };
 let lowStock = [];
@@ -243,13 +243,16 @@ async function refresh() {
   renderProducts();
 }
 
-$('adminName').textContent = user.name;
-$('welcomeName').textContent = user.name;
-$('avatar').textContent = (user.name || user.username)[0].toUpperCase();
-$('newProduct').addEventListener('click', () => openEdit(null));
-$('closeDialog').addEventListener('click', closeDialog);
-$('cancelDialog').addEventListener('click', closeDialog);
-$('searchProducts').addEventListener('input', renderProducts);
-$('logout').addEventListener('click', logout);
-
-refresh().catch(error => alert(error.message));
+currentUser().then(current => {
+  if (!current) return;
+  user = current;
+  $('adminName').textContent = user.name;
+  $('welcomeName').textContent = user.name;
+  $('avatar').textContent = (user.name || user.username)[0].toUpperCase();
+  $('newProduct').addEventListener('click', () => openEdit(null));
+  $('closeDialog').addEventListener('click', closeDialog);
+  $('cancelDialog').addEventListener('click', closeDialog);
+  $('searchProducts').addEventListener('input', renderProducts);
+  $('logout').addEventListener('click', logout);
+  refresh().catch(error => alert(error.message));
+});

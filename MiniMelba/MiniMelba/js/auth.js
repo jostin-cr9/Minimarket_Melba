@@ -1,22 +1,23 @@
 
 const ROLE_HOME = { admin: 'admin.html', vendedor: 'vendedor.html', comprador: 'comprador.html' };
-let _usuarioCache;
+let _usuarioPromise;
 
-function currentUser() {
-  if (_usuarioCache !== undefined) return _usuarioCache;
-  try {
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', '/api/auth/me', false);
-    xhr.send();
-    _usuarioCache = xhr.status === 200 ? JSON.parse(xhr.responseText).user : null;
-  } catch {
-    _usuarioCache = null;
+async function currentUser() {
+  if (!_usuarioPromise) {
+    _usuarioPromise = fetch('/api/auth/me')
+      .then(async response => {
+        if (!response.ok) return null;
+        return (await response.json()).user;
+      })
+      .catch(() => null);
   }
-  return _usuarioCache;
+  const user = await _usuarioPromise;
+  if (!user) location.replace('index.html');
+  return user;
 }
 
-function requireRole(role) {
-  const user = currentUser();
+async function requireRole(role) {
+  const user = await currentUser();
   if (!user) { location.replace('index.html'); return null; }
   if (role && user.role !== role) {
     location.replace(ROLE_HOME[user.role] || 'index.html');
