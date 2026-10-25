@@ -250,6 +250,7 @@ $('modalNo').addEventListener('click', () => {
   $('modal').classList.add('oculto');
   accionPendiente = null;
 });
+
 // AVISO: VENTA REGISTRADA
 function mostrarAviso(codigo) {
   $('avisoCodigo').textContent = codigo;
@@ -296,12 +297,12 @@ async function registrarVenta() {
     if (!res.ok) throw new Error(data.error || 'No se pudo registrar la venta.');
 
     reiniciar();
-    await refrescarProductos();              // trae los stocks reales de la BD
+    await refrescarProductos(); // trae los stocks reales de la BD
     msg('');
     mostrarAviso(cuerpo.transactionCode);
   } catch (error) {
-    codigoTx = nuevoCodigoTx();              // código nuevo por si hay que reintentar
-    actualizarTx();
+    // Conserva el mismo código: si el servidor guardó la venta pero se perdió
+    // la respuesta, un reintento debe usar el código original.
     await refrescarProductos();
     msg(error.message);
   } finally {
@@ -313,7 +314,7 @@ function cancelarTransaccion() {
   if (Object.keys(venta).length === 0) return msg('No hay una venta en curso.');
   pedirConfirmacion('¿Desea cancelar la transacción?', () => {
     reiniciar();
-    msg('Transacción cancelada.');           // no se guarda en la BD
+    msg('Transacción cancelada.'); // no se guarda en la BD
   });
 }
 
