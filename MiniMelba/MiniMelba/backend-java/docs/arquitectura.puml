@@ -1,0 +1,17 @@
+@startuml
+title Minimarket Melba - módulo Java de productos
+actor Usuario
+boundary ProductController
+control ProductService
+interface ProductDao
+database MySQL
+entity Product
+
+Usuario --> ProductController : HTTP / JSON
+ProductController --> ProductService : operaciones de catálogo
+ProductService --> ProductDao : interfaz de persistencia
+ProductDao <|.. JdbcProductDao
+JdbcProductDao --> MySQL : SQL parametrizado
+ProductController ..> Product : request/response
+ProductService ..> Product : reglas y normalización
+@enduml
