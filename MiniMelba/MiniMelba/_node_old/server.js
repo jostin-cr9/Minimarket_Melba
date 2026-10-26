@@ -5,7 +5,7 @@ const MySQLStore = require('express-mysql-session')(session);
 const helmet = require('helmet');
 const db = require('./db');
 const logger = require('./logger');
-const { asyncRoute } = require('./middleware/auth');
+const { asyncRoute } = require('./_node_old/dao/middleware/auth');
 
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';

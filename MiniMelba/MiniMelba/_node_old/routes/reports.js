@@ -3,7 +3,7 @@ const reportDao = require('../dao/reportDao');
 const { REPORT_RANGES, buildReport } = require('../services/reportService');
 const { buildWorkbook } = require('../services/excelReport');
 const logger = require('../logger');
-const { asyncRoute, requireRole } = require('../middleware/auth');
+const { asyncRoute, requireRole } = require('../_node_old/dao/middleware/auth');
 
 const router = express.Router();
 const INVALID_RANGE = 'Periodo no válido. Usa: day, week, month, year o 5years.';
