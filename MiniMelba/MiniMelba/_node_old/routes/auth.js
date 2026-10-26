@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const { rateLimit } = require('express-rate-limit');
 const userDao = require('../dao/userDao');
 const logger = require('../logger');
-const { asyncRoute, requireAuth } = require('../middleware/auth');
+const { asyncRoute, requireAuth } = require('../_node_old/dao/middleware/auth');
 
 const router = express.Router();
 const isProduction = process.env.NODE_ENV === 'production';

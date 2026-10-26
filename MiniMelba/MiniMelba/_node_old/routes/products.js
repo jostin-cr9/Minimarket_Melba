@@ -1,7 +1,7 @@
 const express = require('express');
 const productService = require('../services/productService');
 const logger = require('../logger');
-const { asyncRoute, requireAuth, requireRole } = require('../middleware/auth');
+const { asyncRoute, requireAuth, requireRole } = require('../_node_old/dao/middleware/auth');
 
 const router = express.Router();
 

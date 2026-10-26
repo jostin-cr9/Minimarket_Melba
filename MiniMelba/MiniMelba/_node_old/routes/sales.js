@@ -3,7 +3,7 @@ const productDao = require('../dao/productDao');
 const saleDao = require('../dao/saleDao');
 const { withTransaction } = require('../dao/transaction');
 const logger = require('../logger');
-const { asyncRoute, requireRole } = require('../middleware/auth');
+const { asyncRoute, requireRole } = require('../_node_old/dao/middleware/auth');
 
 const router = express.Router();
 const fail = (status, message) => Object.assign(new Error(message), { status });
