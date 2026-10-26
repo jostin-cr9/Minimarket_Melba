@@ -5,11 +5,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import pe.minimelba.common.ApiException;
 
 import java.util.Map;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    @ExceptionHandler(ApiException.class)
+    public ResponseEntity<Map<String, String>> apiError(ApiException error) {
+        return ResponseEntity.status(error.status()).body(Map.of("error", error.getMessage()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> badRequest(IllegalArgumentException error) {
         return ResponseEntity.badRequest().body(Map.of("error", error.getMessage()));
@@ -19,5 +25,10 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, String>> duplicateCode(DuplicateKeyException error) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("error", "Ya existe un producto con ese código."));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, String>> unexpected(Exception error) {
+        return ResponseEntity.internalServerError().body(Map.of("error", "Ocurrió un error interno. Intenta nuevamente."));
     }
 }

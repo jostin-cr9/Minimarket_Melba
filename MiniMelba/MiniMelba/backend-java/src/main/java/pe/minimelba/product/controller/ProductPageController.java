@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
 public class ProductPageController {
-    @GetMapping("/")
+    @GetMapping("/catalogo-java")
     public String productsPage() {
         return "products";
     }

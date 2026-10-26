@@ -1,34 +1,34 @@
 # Cómo explicar MVC, DAO, SOLID y TDD
 
-## Recorrido de una operación
+## Recorrido de una venta
 
-Al guardar un producto, el navegador envía `POST /api/products`. `ProductController` recibe la solicitud; `ProductServiceImpl` valida y normaliza los datos; `ProductDao` define el contrato de persistencia; `JdbcProductDao` ejecuta SQL parametrizado en MySQL. La respuesta vuelve como JSON.
+El navegador envía `POST /api/sales`. `SaleController` verifica sesión y rol; `SaleService` valida artículos, calcula el total y coordina la transacción; `ProductDao` bloquea y actualiza stock; `SaleRepository` registra la venta; MySQL confirma las operaciones juntas.
 
 ```text
-Vista (products.html + products.js)
+Vista HTML/JavaScript existente
               ↓ HTTP/JSON
-ProductController (MVC: Controller)
+Controller (permisos y respuesta HTTP)
               ↓
-ProductServiceImpl (reglas de aplicación)
-              ↓ ProductDao (contrato)
-JdbcProductDao (DAO concreto)
+Service (reglas de negocio)
+              ↓ interfaces DAO
+Implementaciones JDBC
               ↓
            MySQL
 ```
 
 ## Principios SOLID visibles en el módulo
 
-- **S — Responsabilidad única:** el controlador atiende HTTP; el servicio valida las reglas del catálogo; el DAO consulta y actualiza MySQL.
-- **O — Abierto/cerrado:** el servicio depende de `ProductDao`. Se puede añadir otra implementación de persistencia sin cambiar el controlador, siempre que respete el contrato. En este módulo aún no se incluye esa segunda implementación.
-- **L — Sustitución de Liskov:** una implementación alternativa de `ProductDao` debe poder sustituir a `JdbcProductDao` y conservar el comportamiento esperado de listar, insertar, actualizar y desactivar.
-- **I — Segregación de interfaces:** el módulo usa un contrato pequeño, dedicado a operaciones de productos; los consumidores no dependen de métodos de otras áreas como usuarios o reportes.
-- **D — Inversión de dependencias:** `ProductServiceImpl` recibe `ProductDao` por constructor. Depende de la abstracción; Spring provee la implementación JDBC.
+- **S — Responsabilidad única:** cada controlador atiende HTTP; cada servicio aplica reglas; cada DAO realiza persistencia.
+- **O — Abierto/cerrado:** los servicios dependen de interfaces DAO. Se puede agregar una implementación compatible sin cambiar las reglas del pedido o la venta.
+- **L — Sustitución de Liskov:** otra implementación de `OrderRepository`, `SaleRepository` u otro contrato debe conservar el resultado esperado y poder sustituir al DAO JDBC.
+- **I — Segregación de interfaces:** los contratos se separan por dominio en lugar de agrupar todas las operaciones en un DAO gigante.
+- **D — Inversión de dependencias:** los servicios reciben abstracciones por constructor. `OrderService` recibe `OrderRepository`, `ProductDao` y `SaleRepository`; Spring proporciona sus implementaciones JDBC.
 
 O, L e I se presentan aquí de forma básica, a partir del contrato de persistencia; no se agregan jerarquías ni capas ficticias solo para cumplir una lista.
 
 ## TDD y pruebas
 
-`ProductServiceImplTest` comprueba tres comportamientos: normalizar datos antes de guardarlos, rechazar precio cero y rechazar stock negativo. Los errores de validación deben ocurrir antes de invocar al DAO.
+`ProductServiceImplTest` comprueba tres comportamientos: normalizar datos antes de guardarlos, rechazar precio cero y rechazar stock negativo sin invocar al DAO.
 
 Para demostrar el proceso TDD en Git, trabajen cada regla en ciclos pequeños:
 
@@ -39,6 +39,6 @@ Para demostrar el proceso TDD en Git, trabajen cada regla en ciclos pequeños:
 
 Las pruebas existentes no sustituyen el historial que demuestra ese ciclo. Ejecutar `mvn test` requiere JDK y Maven.
 
-## Seguridad y límites actuales
+## Sesiones y seguridad
 
-Las consultas usan parámetros en lugar de concatenar valores del usuario; los datos de conexión se configuran por entorno; el servicio valida campos y la eliminación del producto es lógica. Este avance todavía no agrega autenticación/autorización Java ni migra usuarios, pedidos, ventas y reportes. No se debe exponer este módulo públicamente como sistema terminado.
+Las contraseñas se guardan con BCrypt. El ID de sesión se renueva al autenticar; los endpoints verifican roles; se limitan los intentos de registro e inicio de sesión; las entradas se validan y las consultas SQL usan parámetros. Los datos de conexión viven en `.env`, que no se debe subir a Git.

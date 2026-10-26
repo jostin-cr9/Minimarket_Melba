@@ -11,4 +11,8 @@ public interface ProductDao {
     long insert(Product product);
     boolean update(Product product);
     boolean deactivate(long id);
+    java.util.Optional<Product> findForSale(long id);
+    boolean decreaseStock(long id, int quantity);
+    java.util.Map<String, Object> getSummary();
+    java.util.List<java.util.Map<String, Object>> findLowStock();
 }

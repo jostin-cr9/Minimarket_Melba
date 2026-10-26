@@ -66,6 +66,30 @@ public class JdbcProductDao implements ProductDao {
         return jdbc.update("UPDATE products SET active=FALSE WHERE id=? AND active=TRUE", id) == 1;
     }
 
+    @Override
+    public Optional<Product> findForSale(long id) {
+        return jdbc.query("SELECT id,code,name,category,unit,price,stock,image FROM products WHERE id=? AND active=TRUE FOR UPDATE",
+                ROW_MAPPER, id).stream().findFirst();
+    }
+
+    @Override
+    public boolean decreaseStock(long id, int quantity) {
+        return jdbc.update("UPDATE products SET stock=stock-? WHERE id=? AND active=TRUE AND stock>=?", quantity, id, quantity) == 1;
+    }
+
+    @Override
+    public java.util.Map<String, Object> getSummary() {
+        return jdbc.queryForMap("SELECT (SELECT COUNT(*) FROM products WHERE active=TRUE) AS productCount, " +
+                "(SELECT COALESCE(SUM(stock),0) FROM products WHERE active=TRUE) AS stockUnits, " +
+                "(SELECT COUNT(*) FROM sales) AS saleCount, " +
+                "(SELECT COUNT(*) FROM products WHERE active=TRUE AND stock<=5) AS lowStockCount");
+    }
+
+    @Override
+    public java.util.List<java.util.Map<String, Object>> findLowStock() {
+        return jdbc.queryForList("SELECT id,code,name,category,price,stock FROM products WHERE active=TRUE AND stock<=5 ORDER BY stock,name");
+    }
+
     private static void setProduct(PreparedStatement statement, Product product) throws java.sql.SQLException {
         statement.setString(1, product.code());
         statement.setString(2, product.name());
