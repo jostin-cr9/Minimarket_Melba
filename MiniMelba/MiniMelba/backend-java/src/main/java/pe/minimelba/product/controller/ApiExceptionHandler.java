@@ -5,12 +5,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import pe.minimelba.common.ApiException;
 
 import java.util.Map;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<Map<String, String>> apiError(ApiException error) {
         return ResponseEntity.status(error.status()).body(Map.of("error", error.getMessage()));
@@ -29,6 +32,7 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> unexpected(Exception error) {
+        log.error("Error interno atendiendo una solicitud API", error);
         return ResponseEntity.internalServerError().body(Map.of("error", "Ocurrió un error interno. Intenta nuevamente."));
     }
 }
