@@ -4,7 +4,7 @@ const productDao = require('../dao/productDao');
 const saleDao = require('../dao/saleDao');
 const { withTransaction } = require('../dao/transaction');
 const logger = require('../logger');
-const { asyncRoute, requireAuth, requireRole } = require('../middleware/auth');
+const { asyncRoute, requireAuth, requireRole } = require('../_node_old/dao/middleware/auth');
 
 const router = express.Router();
 
