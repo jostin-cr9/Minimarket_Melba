@@ -64,7 +64,9 @@ public class OrderService {
                 Map<String,Object> order=orders.findByIdForUpdate(id);
                 if(order==null) throw ApiException.notFound("No se encontró el pedido.");
                 String current=String.valueOf(order.get("status"));
-                if(!TRANSITIONS.get(current).contains(next)) throw ApiException.conflict("Un pedido "+current+" no puede pasar a "+next+".");
+                   // A retry after a lost response must not require re-arming the order
+                // or create a second sale. Completion is safe to acknowledge again.
+                if("completado".equals(current) && "completado".equals(next)) return current;                if(!TRANSITIONS.get(current).contains(next)) throw ApiException.conflict("Un pedido "+current+" no puede pasar a "+next+".");
                 Long saleId=null;
                 if("completado".equals(next)) {
                     List<Map<String,Object>> items=orders.findItems(id);
