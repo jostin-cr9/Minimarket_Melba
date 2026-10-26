@@ -1,0 +1,74 @@
+@startuml
+title Minimarket Melba - arquitectura Java
+actor Usuario
+package "Vista existente" {
+  artifact HTML
+  artifact JavaScript
+}
+package "MVC / API" {
+  component AuthController
+  component ProductController
+  component OrderController
+  component SaleController
+  component AdminController
+  component ReportController
+}
+package "Servicios" {
+  component AuthService
+  component ProductService
+  component OrderService
+  component SaleService
+  component ReportService
+  component ExcelReportService
+}
+package "DAO / contratos" {
+  interface UserDao
+  interface ProductDao
+  interface OrderRepository
+  interface SaleRepository
+  interface ReportRepository
+  component JdbcUserDao
+  component JdbcProductDao
+  component OrderDao
+  component SaleDao
+  component ReportDao
+}
+database MySQL
+
+Usuario --> HTML
+HTML --> JavaScript
+JavaScript --> AuthController : HTTP / JSON
+JavaScript --> ProductController : HTTP / JSON
+JavaScript --> OrderController : HTTP / JSON
+JavaScript --> SaleController : HTTP / JSON
+JavaScript --> AdminController : HTTP / JSON
+JavaScript --> ReportController : HTTP / JSON
+AuthController --> AuthService
+ProductController --> ProductService
+OrderController --> OrderService
+SaleController --> SaleService
+AdminController --> ProductDao
+AdminController --> UserDao
+AdminController --> SaleRepository
+ReportController --> ReportService
+ReportController --> ExcelReportService
+ExcelReportService --> ReportService
+AuthService --> UserDao
+ProductService --> ProductDao
+OrderService --> OrderRepository
+OrderService --> ProductDao
+OrderService --> SaleRepository
+SaleService --> ProductDao
+SaleService --> SaleRepository
+ReportService --> ReportRepository
+JdbcUserDao ..|> UserDao
+JdbcProductDao ..|> ProductDao
+OrderDao ..|> OrderRepository
+SaleDao ..|> SaleRepository
+ReportDao ..|> ReportRepository
+JdbcUserDao --> MySQL
+JdbcProductDao --> MySQL
+OrderDao --> MySQL
+SaleDao --> MySQL
+ReportDao --> MySQL
+@enduml

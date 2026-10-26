@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-MinimelbaApplication<minimelba-java>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "pe.minimelba.MinimelbaApplication",
+            "projectName": "minimelba-java",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
