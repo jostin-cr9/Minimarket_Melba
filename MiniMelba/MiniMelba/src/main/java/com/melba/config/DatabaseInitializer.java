@@ -35,7 +35,7 @@ public class DatabaseInitializer implements ApplicationRunner {
             populator.execute(dataSource);
             log.info("Base de datos y tablas creadas. Productos iniciales listos.");
         } catch (Exception e) {
-            log.error("No se pudo inicializar MySQL: {}", e.getMessage());
+            log.error("No se pudo inicializar PostgreSQL: {}", e.getMessage());
         }
     }
 }

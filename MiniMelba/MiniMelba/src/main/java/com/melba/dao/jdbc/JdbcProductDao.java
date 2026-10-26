@@ -48,13 +48,13 @@ public class JdbcProductDao implements ProductDao {
     @Override
     public int update(long id, Product p) {
         return jdbc.update(
-                "UPDATE products SET code=?, name=?, category=?, unit=?, price=?, stock=?, image=? WHERE id=? AND active=TRUE",
+                "UPDATE products SET code=?, name=?, category=?, unit=?, price=?, stock=?, image=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND active=TRUE",
                 p.code(), p.name(), p.category(), p.unit(), p.price(), p.stock(), p.image(), id);
     }
 
     @Override
     public int deactivate(long id) {
-        return jdbc.update("UPDATE products SET active=FALSE WHERE id=? AND active=TRUE", id);
+        return jdbc.update("UPDATE products SET active=FALSE, updated_at=CURRENT_TIMESTAMP WHERE id=? AND active=TRUE", id);
     }
 
     @Override
@@ -75,7 +75,7 @@ public class JdbcProductDao implements ProductDao {
 
     @Override
     public void decreaseStock(long id, int quantity) {
-        jdbc.update("UPDATE products SET stock = stock - ? WHERE id = ?", quantity, id);
+        jdbc.update("UPDATE products SET stock = stock - ?, updated_at=CURRENT_TIMESTAMP WHERE id = ?", quantity, id);
     }
 
     @Override

@@ -8,7 +8,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-/** Al arrancar, comprueba la conexión a MySQL y la registra en el log. */
+/** Al arrancar, comprueba la conexión a PostgreSQL y la registra en el log. */
 @Component
 @Order(1)
 public class DatabaseConnectionLogger implements ApplicationRunner {
@@ -25,9 +25,9 @@ public class DatabaseConnectionLogger implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         try {
             jdbc.queryForObject("SELECT 1", Integer.class);
-            log.info("Conexión a MySQL correcta");
+            log.info("Conexión a PostgreSQL correcta");
         } catch (Exception e) {
-            log.error("No se pudo conectar a MySQL: {}", e.getMessage());
+            log.error("No se pudo conectar a PostgreSQL: {}", e.getMessage());
         }
     }
 }

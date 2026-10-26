@@ -13,7 +13,7 @@ public enum Role {
         this.value = value;
     }
 
-    /** Valor tal como se guarda en MySQL y se envía en el JSON. */
+    /** Valor tal como se guarda en la base de datos y se envía en el JSON. */
     @JsonValue
     public String getValue() {
         return value;

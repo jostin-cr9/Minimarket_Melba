@@ -6,7 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.io.Serializable;
 
-/** Usuario guardado en la sesión (debe ser Serializable porque la sesión va a MySQL). */
+/** Usuario guardado en la sesión JDBC (debe ser Serializable). */
 public record SessionUser(Long id, String name, String username, Role role) implements Serializable {
 
     private static final long serialVersionUID = 1L;

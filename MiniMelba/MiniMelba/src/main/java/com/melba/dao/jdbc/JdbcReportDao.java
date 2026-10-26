@@ -78,7 +78,7 @@ public class JdbcReportDao implements ReportDao {
     @Override
     public List<Rows.DayTotal> byDay(Instant since) {
         return jdbc.query("""
-                SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS dia, COUNT(*) AS ventas, SUM(total) AS total
+                SELECT TO_CHAR(created_at, 'YYYY-MM-DD') AS dia, COUNT(*) AS ventas, SUM(total) AS total
                 FROM sales WHERE created_at >= ?
                 GROUP BY dia ORDER BY dia
                 """,

@@ -1,50 +1,47 @@
 CREATE TABLE IF NOT EXISTS users (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   name VARCHAR(120) NOT NULL,
   username VARCHAR(50) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
-  role ENUM('admin','vendedor','comprador') NOT NULL DEFAULT 'comprador',
+  role VARCHAR(20) NOT NULL DEFAULT 'comprador' CHECK (role IN ('admin','vendedor','comprador')),
   active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS products (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   code VARCHAR(30) NOT NULL UNIQUE,
   name VARCHAR(120) NOT NULL,
   category VARCHAR(60) NOT NULL,
   unit VARCHAR(40) NOT NULL DEFAULT 'unidad',
   price DECIMAL(10,2) NOT NULL,
-  stock INT UNSIGNED NOT NULL DEFAULT 0,
-  image VARCHAR(255) NULL,
+  stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+  image VARCHAR(255),
   active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS sales (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   transaction_code VARCHAR(40) NOT NULL UNIQUE,
-  seller_id BIGINT UNSIGNED NOT NULL,
+  seller_id BIGINT NOT NULL REFERENCES users(id),
   customer_name VARCHAR(120) NOT NULL,
   payment_method VARCHAR(30) NOT NULL,
   total DECIMAL(12,2) NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_sales_seller FOREIGN KEY (seller_id) REFERENCES users(id)
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS sale_items (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  sale_id BIGINT UNSIGNED NOT NULL,
-  product_id BIGINT UNSIGNED NOT NULL,
+  id BIGSERIAL PRIMARY KEY,
+  sale_id BIGINT NOT NULL REFERENCES sales(id),
+  product_id BIGINT NOT NULL REFERENCES products(id),
   product_name VARCHAR(120) NOT NULL,
-  quantity INT UNSIGNED NOT NULL,
-  unit_price DECIMAL(10,2) NOT NULL,
-  CONSTRAINT fk_sale_items_sale FOREIGN KEY (sale_id) REFERENCES sales(id),
-  CONSTRAINT fk_sale_items_product FOREIGN KEY (product_id) REFERENCES products(id)
+  quantity INTEGER NOT NULL CHECK (quantity >= 0),
+  unit_price DECIMAL(10,2) NOT NULL
 );
 
-INSERT IGNORE INTO products (id, code, name, category, unit, price, stock, image) VALUES
+INSERT INTO products (id, code, name, category, unit, price, stock, image) VALUES
 (1,'7750001','Leche Gloria','Lácteos','1 L',4.80,24,'img/produ/leche-gloria.webp'),
 (2,'7750002','Arroz Costeño','Abarrotes','1 kg',4.20,40,'img/produ/arroz-costeno.webp'),
 (3,'7750003','Aceite Primor','Abarrotes','1 L',9.50,4,'img/produ/aceite-primor.webp'),
@@ -56,36 +53,34 @@ INSERT IGNORE INTO products (id, code, name, category, unit, price, stock, image
 (9,'7750009','Yogurt Gloria','Lácteos','1 L',7.50,15,'img/produ/yogurt-gloria.webp'),
 (10,'7750010','Agua San Luis','Bebidas','625 ml',1.50,30,'img/produ/agua-san-luis.webp'),
 (11,'7750011','Manzana','Frutas','1 kg',6.00,20,'img/produ/manzana.webp'),
-(12,'7750012','Plátano de seda','Frutas','1 kg',4.50,20,'img/produ/platano-seda.webp');
+(12,'7750012','Plátano de seda','Frutas','1 kg',4.50,20,'img/produ/platano-seda.webp')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('products', 'id'), GREATEST(COALESCE((SELECT MAX(id) FROM products), 1), 1), TRUE);
 
 CREATE TABLE IF NOT EXISTS orders (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   order_code VARCHAR(40) NOT NULL UNIQUE,
-  buyer_id BIGINT UNSIGNED NOT NULL,
+  buyer_id BIGINT NOT NULL REFERENCES users(id),
   customer_name VARCHAR(120) NOT NULL,
   delivery_type VARCHAR(30) NOT NULL,
-  address VARCHAR(255) NULL,
+  address VARCHAR(255),
   payment_method VARCHAR(30) NOT NULL,
   total DECIMAL(12,2) NOT NULL,
-  status ENUM('pendiente','armado','completado','cancelado') NOT NULL DEFAULT 'pendiente',
+  status VARCHAR(20) NOT NULL DEFAULT 'pendiente' CHECK (status IN ('pendiente','armado','completado','cancelado')),
   stock_reserved BOOLEAN NOT NULL DEFAULT FALSE,
-  seller_id BIGINT UNSIGNED NULL,
-  sale_id BIGINT UNSIGNED NULL,
+  seller_id BIGINT REFERENCES users(id),
+  sale_id BIGINT REFERENCES sales(id),
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_orders_buyer FOREIGN KEY (buyer_id) REFERENCES users(id),
-  CONSTRAINT fk_orders_seller FOREIGN KEY (seller_id) REFERENCES users(id),
-  CONSTRAINT fk_orders_sale FOREIGN KEY (sale_id) REFERENCES sales(id)
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS order_items (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  order_id BIGINT UNSIGNED NOT NULL,
-  product_id BIGINT UNSIGNED NOT NULL,
+  id BIGSERIAL PRIMARY KEY,
+  order_id BIGINT NOT NULL REFERENCES orders(id),
+  product_id BIGINT NOT NULL REFERENCES products(id),
   product_name VARCHAR(120) NOT NULL,
   unit VARCHAR(40) NOT NULL,
-  quantity INT UNSIGNED NOT NULL,
-  unit_price DECIMAL(10,2) NOT NULL,
-  CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES orders(id),
-  CONSTRAINT fk_order_items_product FOREIGN KEY (product_id) REFERENCES products(id)
+  quantity INTEGER NOT NULL CHECK (quantity >= 0),
+  unit_price DECIMAL(10,2) NOT NULL
 );

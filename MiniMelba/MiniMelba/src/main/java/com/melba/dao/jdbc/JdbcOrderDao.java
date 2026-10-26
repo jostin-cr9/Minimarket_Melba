@@ -41,7 +41,7 @@ public class JdbcOrderDao implements OrderDao {
         long id = JdbcHelper.insertReturningId(jdbc,
                 "INSERT INTO orders (order_code, buyer_id, customer_name, delivery_type, address, payment_method, total) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 UUID.randomUUID().toString(), buyerId, customerName, delivery, address, paymentMethod, total);
-        jdbc.update("UPDATE orders SET order_code = CONCAT('PED-', LPAD(id, 4, '0')) WHERE id = ?", id);
+        jdbc.update("UPDATE orders SET order_code = 'PED-' || LPAD(id::text, 4, '0'), updated_at=CURRENT_TIMESTAMP WHERE id = ?", id);
         return id;
     }
 
@@ -129,14 +129,14 @@ public class JdbcOrderDao implements OrderDao {
 
     @Override
     public void updateStatus(long id, OrderStatus status, long sellerId, Long saleId) {
-        jdbc.update("UPDATE orders SET status=?, seller_id=?, sale_id=COALESCE(?, sale_id) WHERE id=?",
+        jdbc.update("UPDATE orders SET status=?, seller_id=?, sale_id=COALESCE(?, sale_id), updated_at=CURRENT_TIMESTAMP WHERE id=?",
                 status.getValue(), sellerId, saleId, id);
     }
 
     @Override
     public boolean cancelPending(long id, long buyerId) {
         return jdbc.update(
-                "UPDATE orders SET status = 'cancelado' WHERE id = ? AND buyer_id = ? AND status = 'pendiente'",
+                "UPDATE orders SET status = 'cancelado', updated_at=CURRENT_TIMESTAMP WHERE id = ? AND buyer_id = ? AND status = 'pendiente'",
                 id, buyerId) == 1;
     }
 
