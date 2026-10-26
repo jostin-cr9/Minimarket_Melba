@@ -2,11 +2,10 @@
   "name": "minimarket-melba",
   "version": "1.0.0",
   "private": true,
-  "description": "Sistema de gestión para Minimarket Melba",
-  "main": "server.js",
+  "description": "Sistema de gestión Minimarket Melba con backend Java Spring Boot",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
+    "start": "set MAVEN_USER_HOME=backend-java\\target\\maven-wrapper&& backend-java\\mvnw.cmd -f backend-java/pom.xml -Dmaven.repo.local=backend-java/target/maven-repository spring-boot:run",
+    "dev": "set MAVEN_USER_HOME=backend-java\\target\\maven-wrapper&& backend-java\\mvnw.cmd -f backend-java/pom.xml -Dmaven.repo.local=backend-java/target/maven-repository spring-boot:run",
     "init-db": "node scripts/init-db.js",
     "create-admin": "node scripts/create-admin.js"
   },
