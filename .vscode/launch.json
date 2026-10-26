@@ -9,6 +9,16 @@
             "projectName": "minimelba-java",
             "args": "",
             "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-MiniMelbaApplication<minimarket-melba>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.melba.MiniMelbaApplication",
+            "projectName": "minimarket-melba",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
         }
     ]
 }
