@@ -11,10 +11,123 @@ let venta = {};              // { idProducto: cantidad }
 let codigoTx = '';
 let accionPendiente = null;
 let ocupado = false;
+let pedidoSeleccionado = null;
 
 const $ = id => document.getElementById(id);
 const soles = n => 'S/ ' + n.toFixed(2);
 const porId = id => productos.find(p => p.id === id);
+
+function lineaVenta(id) {
+  const itemPedido = pedidoSeleccionado?.items.find(i => Number(i.productId) === Number(id));
+  if (itemPedido) {
+    return {
+      id: Number(id),
+      nombre: itemPedido.name,
+      unidad: itemPedido.unit,
+      precio: Number(itemPedido.price),
+      stock: porId(Number(id))?.stock ?? 0
+    };
+  }
+  const p = porId(Number(id));
+  return p ? { ...p, nombre: p.nombre, unidad: '', precio: p.precio } : null;
+}
+
+function actualizarModoPedido() {
+  const soloLectura = Boolean(pedidoSeleccionado);
+  $('buscar').disabled = soloLectura;
+  $('cantidad').disabled = soloLectura;
+  $('btnAgregar').disabled = soloLectura;
+  $('cliente').readOnly = soloLectura;
+  $('pago').disabled = soloLectura;
+  $('btnCompletar').textContent = soloLectura ? 'Completar pedido' : 'Completar Venta (F10)';
+  $('pedidoDetalle').textContent = pedidoSeleccionado
+    ? `${pedidoSeleccionado.delivery}${pedidoSeleccionado.address ? ' · ' + pedidoSeleccionado.address : ''} · ${pedidoSeleccionado.payment} · Total: ${soles(Number(pedidoSeleccionado.total))}`
+    : '';
+}
+
+async function cargarPedidosCliente() {
+  const selector = $('pedidoCliente');
+  try {
+    const [pendientesRes, armadosRes] = await Promise.all([
+      fetch('/api/orders?status=pendiente'),
+      fetch('/api/orders?status=armado')
+    ]);
+    if (pendientesRes.status === 401 || armadosRes.status === 401) {
+      location.replace('index.html');
+      return;
+    }
+    const [pendientesData, armadosData] = await Promise.all([
+      pendientesRes.json(), armadosRes.json()
+    ]);
+    if (!pendientesRes.ok || !armadosRes.ok) {
+      throw new Error(pendientesData.error || armadosData.error || 'No se pudieron cargar los pedidos.');
+    }
+
+    const pedidos = [...pendientesData.orders, ...armadosData.orders]
+      .sort((a, b) => Number(b.id) - Number(a.id));
+    selector.innerHTML = '<option value="">Venta presencial (sin pedido)</option>';
+    pedidos.forEach(pedido => {
+      const opcion = document.createElement('option');
+      opcion.value = pedido.id;
+      opcion.textContent = `${pedido.code} · ${pedido.customer} · ${soles(Number(pedido.total))}`;
+      selector.appendChild(opcion);
+    });
+    selector.disabled = false;
+  } catch (error) {
+    selector.innerHTML = '<option value="">No se pudieron cargar los pedidos</option>';
+    selector.disabled = true;
+    msg(error.message);
+  }
+}
+
+function seleccionarPedidoCliente() {
+  const id = Number($('pedidoCliente').value);
+  if (!id) {
+    pedidoSeleccionado = null;
+    venta = {};
+    $('cliente').value = 'Cliente Genérico (Público General)';
+    $('pago').value = 'Efectivo';
+    actualizarModoPedido();
+    renderProductos();
+    render();
+    return;
+  }
+
+  const todasLasOpciones = [...$('pedidoCliente').options];
+  const opcion = todasLasOpciones.find(o => Number(o.value) === id);
+  if (!opcion) return;
+
+  cargarDetallePedido(id);
+}
+
+async function cargarDetallePedido(id) {
+  try {
+    const res = await fetch('/api/orders');
+    if (res.status === 401) { location.replace('index.html'); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'No se pudo cargar el detalle del pedido.');
+    const pedido = data.orders.find(o => Number(o.id) === id);
+    if (!pedido) throw new Error('El pedido ya no está pendiente o armado. Actualiza la lista.');
+
+    pedidoSeleccionado = pedido;
+    venta = Object.fromEntries(pedido.items.map(i => [Number(i.productId), Number(i.quantity)]));
+    codigoTx = pedido.code;
+    $('cliente').value = pedido.customer;
+    $('pago').value = pedido.payment === 'Yape/Plin' ? 'Yape / Plin' : pedido.payment;
+    actualizarTx();
+    actualizarModoPedido();
+    renderProductos();
+    render();
+    msg('Pedido del cliente cargado.', true);
+  } catch (error) {
+    pedidoSeleccionado = null;
+    $('pedidoCliente').value = '';
+    actualizarModoPedido();
+    msg(error.message);
+  }
+}
+
+$('pedidoCliente').addEventListener('change', seleccionarPedidoCliente);
 
 function esc(text) {
   const el = document.createElement('span');
@@ -116,7 +229,7 @@ function renderProductos() {
       <td>${esc(p.categoria)}</td>
       <td class="r">${soles(p.precio)}</td>
       <td class="c ${bajo ? 'stock-bajo' : ''}">${p.stock}${bajo ? ' ⚠' : ''}</td>
-      <td class="c"><button type="button" class="btn-add" ${p.stock === 0 ? 'disabled' : ''}>Agregar</button></td>`;
+      <td class="c"><button type="button" class="btn-add" ${p.stock === 0 || pedidoSeleccionado ? 'disabled' : ''}>Agregar</button></td>`;
     tr.querySelector('.btn-add').addEventListener('click', () => agregar(p));
     tb.appendChild(tr);
   });
@@ -157,6 +270,7 @@ $('btnAgregar').addEventListener('click', agregarDesdeBusqueda);
 // DETALLE DE LA VENTA
 // =====================================
 function cambiarCantidad(id, delta) {
+  if (pedidoSeleccionado) return;
   const p = porId(id);
   const nueva = (venta[id] || 0) + delta;
   if (nueva <= 0) delete venta[id];
@@ -167,7 +281,7 @@ function cambiarCantidad(id, delta) {
 }
 
 function totalVenta() {
-  return Object.entries(venta).reduce((s, [id, c]) => s + porId(+id).precio * c, 0);
+  return Object.entries(venta).reduce((s, [id, c]) => s + (lineaVenta(id)?.precio || 0) * c, 0);
 }
 
 function render() {
@@ -180,17 +294,18 @@ function render() {
   }
 
   ids.forEach(id => {
-    const p = porId(+id);
+    const p = lineaVenta(id);
+    if (!p) return;
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${esc(p.nombre)}</td>
+      <td>${esc(p.nombre)}${p.unidad ? ` <small>(${esc(p.unidad)})</small>` : ''}</td>
       <td class="c"><span class="qty">
-        <button type="button" data-d="-1">−</button>${venta[id]}<button type="button" data-d="1">+</button>
+        <button type="button" data-d="-1" ${pedidoSeleccionado ? 'disabled' : ''}>−</button>${venta[id]}<button type="button" data-d="1" ${pedidoSeleccionado ? 'disabled' : ''}>+</button>
       </span></td>
       <td class="r">${soles(p.precio)}</td>
       <td class="r sub">${soles(p.precio * venta[id])}</td>
       <td class="c">
-        <button type="button" class="btn-del" aria-label="Quitar">
+        <button type="button" class="btn-del" aria-label="Quitar" ${pedidoSeleccionado ? 'disabled' : ''}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
         </button>
       </td>`;
@@ -270,7 +385,7 @@ function completarVenta() {
   if (ocupado) return;
   const total = totalVenta();
   if (total === 0) return msg('Agregue productos a la venta.');
-  if ($('pago').value === 'Efectivo' && (parseFloat($('recibido').value) || 0) < total)
+  if (!pedidoSeleccionado && $('pago').value === 'Efectivo' && (parseFloat($('recibido').value) || 0) < total)
     return msg('El monto recibido es menor al total.');
 
   pedirConfirmacion(`¿Desea completar la venta por ${soles(total)}?`, registrarVenta);
@@ -279,6 +394,38 @@ function completarVenta() {
 async function registrarVenta() {
   if (ocupado) return;
   ocupado = true;
+  if (pedidoSeleccionado) {
+    try {
+      const res = await fetch(`/api/orders/${pedidoSeleccionado.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'completado' })
+      });
+      if (res.status === 401) { location.replace('index.html'); return; }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'No se pudo completar el pedido.');
+
+      const codigoPedido = pedidoSeleccionado.code;
+      pedidoSeleccionado = null;
+      venta = {};
+      $('pedidoCliente').value = '';
+      $('pago').disabled = false;
+      $('cliente').readOnly = false;
+      $('cliente').value = 'Cliente Genérico (Público General)';
+      $('pago').value = 'Efectivo';
+      codigoTx = nuevoCodigoTx();
+      actualizarTx();
+      actualizarModoPedido();
+      await Promise.all([refrescarProductos(), cargarPedidosCliente()]);
+      msg('');
+      mostrarAviso(codigoPedido);
+    } catch (error) {
+      msg(error.message);
+    } finally {
+      ocupado = false;
+    }
+    return;
+  }
   const cuerpo = {
     transactionCode: codigoTx,
     customerName: $('cliente').value.trim() || 'Cliente Genérico (Público General)',
@@ -337,4 +484,5 @@ document.addEventListener('keydown', e => {
 
 // ---- Inicio: carga el catálogo y lo actualiza cada 30 s ----
 refrescarProductos();
+cargarPedidosCliente();
 setInterval(() => { if (!ocupado && !document.hidden) refrescarProductos(); }, 30000);
