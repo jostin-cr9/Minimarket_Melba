@@ -7,7 +7,6 @@
             "cwd": "${workspaceFolder}",
             "mainClass": "pe.minimelba.MinimelbaApplication",
             "projectName": "minimelba-java",
-            "args": "--create-admin",
             "envFile": "${workspaceFolder}/.env"
         },
         {
@@ -17,7 +16,6 @@
             "cwd": "${workspaceFolder}",
             "mainClass": "com.melba.MiniMelbaApplication",
             "projectName": "minimarket-melba",
-            "args": "--create-admin",
             "envFile": "${workspaceFolder}/.env"
         }
     ]
