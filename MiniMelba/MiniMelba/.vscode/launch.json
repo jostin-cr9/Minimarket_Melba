@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "MiniMelba (Spring Boot)",
+      "request": "launch",
+      "mainClass": "com.melba.MiniMelbaApplication",
+      "projectName": "minimarket-melba",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    }
+  ]
+}
