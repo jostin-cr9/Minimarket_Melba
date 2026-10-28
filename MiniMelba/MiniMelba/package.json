@@ -1,0 +1,9 @@
+{
+  "name": "minimarket-melba",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Comando npm para iniciar la aplicación Spring Boot de MiniMelba",
+  "scripts": {
+    "start": "mvn -Dmaven.repo.local=\"%USERPROFILE%\\.m2\\repository\" spring-boot:run"
+  }
+}
